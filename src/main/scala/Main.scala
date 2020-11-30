@@ -31,10 +31,9 @@ object Main {
       .build
       .append(names)
       .append(users)
+      .append(name(X, 0) := user(X))
 
-    val c = name(X, 0) := user(X)
-
-    val myQuery = query(name(A, 36))
+    val myQuery = query(name(A, B))
 
     val r = next(myQuery)
 

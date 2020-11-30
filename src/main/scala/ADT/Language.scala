@@ -4,6 +4,9 @@ sealed trait Term
 case class Atom[T](a: T) extends Term
 case class Variable(name: String, version: Int) extends Term
 case class Predicate(name: String, list: List[Term]) extends Term {
+
+  def key: String = name + list.size.toString
+
   def contains(variable: Variable): Boolean = list.find(f => 
     f match
       case term: Variable => term.name == variable.name
@@ -34,6 +37,9 @@ case class Program(program: Map[String, List[Clause]]) {
         .groupBy(k => k.name + k.list.size.toString)
         .map(g => g._1 -> (g._2.map(x => Clause(x, Nil)))).toMap)
   }
+
+  def append(clause: Clause): Program = Program(this.program + 
+    (clause.head.key -> (this.program.get(clause.head.key).getOrElse(List()) ++ List(clause))))
 }
 
 object Program {
