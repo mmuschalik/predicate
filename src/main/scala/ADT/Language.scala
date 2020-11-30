@@ -1,6 +1,9 @@
 package Prolog.ADT
 
-sealed trait Term
+sealed trait Term {
+  def /(variable: Variable): Binding = Binding(this, variable)
+}
+
 case class Atom[T](a: T) extends Term
 case class Variable(name: String, version: Int) extends Term
 case class Predicate(name: String, list: List[Term]) extends Term {
@@ -51,7 +54,7 @@ trait BuildPredicate[T] {
 }
 
 def atom[T]: T => Term = t => Atom(t)
-def variable(name: String): Term = Variable(name, 0)
+def variable(name: String): Variable = Variable(name, 0)
 def predicate(name: String, terms: Term*): Predicate = Predicate(name, terms.toList)
 def query(goals: Goal*): Query = Query(goals.toList)
 
@@ -66,3 +69,4 @@ def Z = variable("Z")
 
 import scala.language.implicitConversions
 implicit def fromInt(a: Int): Term = atom(a)
+implicit def fromString(a: String): Term = atom(a)

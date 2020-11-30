@@ -8,6 +8,10 @@ lazy val root = project
     version := "0.1.0",
 
     libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test",
+    libraryDependencies += "dev.zio" % "zio_2.13" % "1.0.3",
+    libraryDependencies += "dev.zio" % "zio-streams_2.13" % "1.0.3",
+    libraryDependencies += "dev.zio" % "zio-test_2.13" % "1.0.3" % "test",
+    libraryDependencies += "dev.zio" % "zio-test-sbt_2.13" % "1.0.3" % "test",
 
     // To make the default compiler and REPL use Dotty
     scalaVersion := dottyVersion,

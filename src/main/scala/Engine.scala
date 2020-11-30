@@ -1,20 +1,34 @@
 package Prolog
 
 import Prolog.ADT._
+import zio.stream.Stream
+
+class ResultIterator(program: Program, query: Query) extends collection.Iterator[Set[Binding]] {
+  var result: Option[Result] = None
+
+  def hasNext: Boolean = 
+    result = result.fold(Prolog.next(query)(using program))(r => Prolog.next(r.stack)(using program))
+    result.isDefined
+
+  def next(): Set[Binding] = 
+    result
+      .flatMap(f => f.solution)
+      .getOrElse(Set())
+}
+
+def solve(query: Query)(using Program): Stream[Nothing, Set[Binding]] =
+  Stream.fromIterable(new Iterable[Set[Binding]] { def iterator = ResultIterator(summon[Program], query) })
 
 def next(query: Query)(using p: Program): Option[Result] = 
   next(Stack(State(query, 0, Set(), 1) :: Nil))
 
-    //if nothing yielded, pop stack and try that
-
 def next(stack: Stack[State])(using Program): Option[Result] = 
+  stack.peek.foreach(f => println(f.query.goals))
   for {
-    state <- stack.peek
-    goal  <- state.query.goals.headOption
-    goalRemainder = state.query.goals.tail
-    
-    result   <- findUnifiedClause(state, goal, getResult(stack, state))
-                  .orElse(nextStack(stack.pop).flatMap(s => next(s)))
+    state     <- stack.peek
+    goal      <- state.query.goals.headOption
+    result    <- findUnifiedClause(state, goal, getResult(stack, state))
+                   .orElse(nextStack(stack.pop).flatMap(s => next(s)))
   } yield result
 
 def getResult(stack: Stack[State], state: State)(using Program): (Clause, Int, Set[Binding]) => Option[Result] = (clause, foundIndex, bindings) =>

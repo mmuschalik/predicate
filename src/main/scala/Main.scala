@@ -1,5 +1,8 @@
 import Prolog._
 import Prolog.ADT._
+import zio.{App,Task,IO,Runtime}
+import zio.console._
+
 
 case class Name(name: String, age: Int)
 def name(name: Term, age: Term): Predicate = predicate("name", name, age)
@@ -35,9 +38,12 @@ object Main {
 
     val myQuery = query(name(A, B))
 
-    val r = next(myQuery)
+    val runtime = Runtime.default
 
-    display(r)
+    //val b = runtime.unsafeRun(solve(myQuery).runCollect.map(x => x.contains(Set("sophie" / A, 6 / B))))
+    //println(b)
+    
+    runtime.unsafeRun(solve(myQuery).foreach(s => putStrLn(s.map(x => summon[Show[Binding]].show(x)).mkString(", "))))
 
   }
 
@@ -59,11 +65,5 @@ object Main {
   given (using Show[Term]) as Show[Binding] {
     def show(b: Binding): String = summon[Show[Term]].show(b.variable) + " = " + summon[Show[Term]].show(b.term)
   }
-
-  def display(result: Option[Result])(using Program, Show[Binding]): Unit =
-    result.foreach(r => {
-      r.solution.foreach(s => println(s.map(x => summon[Show[Binding]].show(x)).mkString(", ")))
-      display(next(r.stack))
-    })
 
 }
