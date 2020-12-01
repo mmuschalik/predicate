@@ -2,13 +2,22 @@ package Prolog.ADT
 
 sealed trait Term {
   def /(variable: Variable): Binding = Binding(this, variable)
+  def show: String
 }
 
-case class Atom[T](a: T) extends Term
-case class Variable(name: String, version: Int) extends Term
+case class Atom[T](a: T) extends Term {
+  def show: String = a.toString
+}
+
+case class Variable(name: String, version: Int) extends Term {
+  def show: String = if version == 0 then name else name + version.toString
+}
+
 case class Predicate(name: String, list: List[Term]) extends Term {
 
   def key: String = name + list.size.toString
+
+  def show: String = name + "(" + list.map(_.show).mkString(", ") + ")"
 
   def contains(variable: Variable): Boolean = list.find(f => 
     f match
@@ -25,7 +34,9 @@ case class Predicate(name: String, list: List[Term]) extends Term {
 }
 
 type Goal = Predicate
-case class Query(goals: List[Goal])
+case class Query(goals: List[Goal]) {
+  def show: String = goals.map(_.show).mkString(", ")
+}
 case class Clause(head: Goal, body: List[Goal] = Nil)
 case class ClauseBody(body: List[Goal])
 case class Binding(term: Term, variable: Variable)

@@ -23,36 +23,24 @@ def next(query: Query)(using p: Program): Option[Result] =
   next(Stack(State(query, 0, Set(), 1) :: Nil))
 
 def next(stack: Stack[State])(using Program): Option[Result] = 
-  stack.peek.foreach(f => println(f.query.goals))
+  stack.peek.foreach(f => println(f.query.show))
   for {
     state     <- stack.peek
     goal      <- state.query.goals.headOption
     result    <- findUnifiedClause(state, goal, getResult(stack, state))
-                   .orElse(nextStack(stack.pop).flatMap(s => next(s)))
+                   .orElse(next(stack.pop))
   } yield result
 
 def getResult(stack: Stack[State], state: State)(using Program): (Clause, Int, Set[Binding]) => Option[Result] = (clause, foundIndex, bindings) =>
   val nextPosition = stack.pop.push(state.copy(index = foundIndex + 1))
   val goalRemainder = state.query.goals.tail
 
-  if goalRemainder.isEmpty && clause.body.isEmpty && bindings.nonEmpty then
+  if goalRemainder.isEmpty && clause.body.isEmpty then
     Some(Result(nextPosition, Some(state.solution ++ bindings)))
   else
     next(nextPosition.push(State(Query(substitutePredicate(clause.body ::: goalRemainder, bindings)), 0, bindings ++ state.solution, state.depth + 1)))
 
-
-def nextStack(stack: Stack[State])(using p: Program): Option[Stack[State]] =
-  for
-    state          <- stack.peek
-    goal           <- state.query.goals.headOption
-    clauseRemainder = p.get(goal).drop(state.index + 1)
-    nextState      <- 
-                      if clauseRemainder.isEmpty then 
-                        nextStack(stack.pop)
-                      else 
-                        Some(stack.pop.push(state.copy(index = state.index + 1)))
-  yield nextState
-
+    
 def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding]) => Option[Result])(using Program): Option[Result] =
   LazyList(summon[Program].get(goal) :_*)
     .zipWithIndex
@@ -117,3 +105,5 @@ def substitute(t: Term, s: Binding): Term =
     case p: Predicate => p.copy(list = p.list.map(m => substitute(m, s)))
     case _ => t // no substitution required
 
+def merge(left: Set[Binding], right: Set[Binding]): Set[Binding] =
+  ???

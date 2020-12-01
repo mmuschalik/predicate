@@ -1,5 +1,6 @@
 import zio._
 import zio.console._
+import zio.stream._
 import zio.test._
 import zio.test.Assertion._
 import zio.test.environment._
@@ -26,7 +27,7 @@ object TestProlog extends DefaultRunnableSpec {
   val maxCount = 100
 
   def spec = suite("Test Prolog")(
-    /*testM("ensure all basic facts are solutions") {
+    testM("ensure all basic facts are solutions") {
       for {
         solution      <- solve(query(food(A))).take(maxCount).runCount
       } yield assert(solution)(equalTo(foods.size))
@@ -35,11 +36,11 @@ object TestProlog extends DefaultRunnableSpec {
       for {
         solution      <- solve(query(meal(A))).take(maxCount).runCount
       } yield assert(solution)(equalTo(foods.size))
-    },*/
+    },
     testM("test query with multiple goals") {
       for {
-        solution      <- solve(query(meal(A), lunch(A))).take(maxCount).runCount
-      } yield assert(solution)(equalTo(1))
+        solution      <- solve(query(meal(A), lunch(A))).runHead //.aggregate(ZTransducer.fold((0,0))(_ => true)((a, b) => if b == Set("sandwich" / A) then (a._1+1,a._2) else (a._1, a._2+1))).runHead
+      } yield assert(solution)(equalTo(Some(Set("sandwich" / Variable("A", 1)))))
     }
   )
 }
