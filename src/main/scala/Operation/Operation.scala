@@ -2,9 +2,8 @@ package Prolog.Operation
 
 import Prolog.ADT._
 
-def unify(x: Term, y: Term): (Set[Binding], Option[Term]) =
+def unify(x: Term, y: Term): Option[Set[Binding]] =
   unify(List((x, y)), Set())
-    .fold((Set(), None))(b => (b, Some(substitute(x, b))))
 
 def unify(stack: List[(Term, Term)], bindings: Set[Binding]): Option[Set[Binding]] =
   stack
@@ -28,3 +27,6 @@ def substitute(term: Term, bindings: Set[Binding]): Term =
 
 def merge(set: Set[Binding], binding: Binding): Set[Binding] = 
   set.map(s => if s.term == binding.variable then Binding(binding.term, s.variable) else s) + binding
+
+def merge(left: Set[Binding], right: Set[Binding]): Set[Binding] =
+  right.foldLeft(left)(merge(_, _))

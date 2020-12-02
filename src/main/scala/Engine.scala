@@ -23,7 +23,7 @@ def next(query: Query)(using p: Program): Option[Result] =
   next(Stack(State(query, 0, Set(), 1) :: Nil))
 
 def next(stack: Stack[State])(using Program): Option[Result] = 
-  stack.peek.foreach(f => println(f.query.show))
+  //stack.peek.foreach(f => println(f.query.show))
   for {
     state     <- stack.peek
     goal      <- state.query.goals.headOption
