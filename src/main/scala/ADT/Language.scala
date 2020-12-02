@@ -3,14 +3,20 @@ package Prolog.ADT
 sealed trait Term {
   def /(variable: Variable): Binding = Binding(this, variable)
   def show: String
+  def substitute(binding: Binding): Term
+  def contains(variable: Variable): Boolean
 }
 
 case class Atom[T](a: T) extends Term {
   def show: String = a.toString
+  def substitute(binding: Binding): Term = this
+  def contains(variable: Variable): Boolean = false
 }
 
 case class Variable(name: String, version: Int) extends Term {
   def show: String = if version == 0 then name else name + version.toString
+  def substitute(binding: Binding): Term = if binding.variable == this then binding.term else this
+  def contains(variable: Variable): Boolean = this == variable
 }
 
 case class Predicate(name: String, list: List[Term]) extends Term {
@@ -25,6 +31,8 @@ case class Predicate(name: String, list: List[Term]) extends Term {
       case term: Predicate => term.contains(variable)
       case _ => false
     ).isDefined
+
+  def substitute(binding: Binding): Term = Predicate(name, list.map(m => m.substitute(binding)))
 
   def &&(right: Predicate) = ClauseBody(List(this,right))
 
@@ -71,12 +79,12 @@ def query(goals: Goal*): Query = Query(goals.toList)
 
 // Convenience functions
 
-def A = variable("A")
-def B = variable("B")
-def C = variable("C")
-def X = variable("X")
-def Y = variable("Y")
-def Z = variable("Z")
+val A = variable("A")
+val B = variable("B")
+val C = variable("C")
+val X = variable("X")
+val Y = variable("Y")
+val Z = variable("Z")
 
 import scala.language.implicitConversions
 implicit def fromInt(a: Int): Term = atom(a)

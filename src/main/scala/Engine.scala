@@ -34,11 +34,12 @@ def next(stack: Stack[State])(using Program): Option[Result] =
 def getResult(stack: Stack[State], state: State)(using Program): (Clause, Int, Set[Binding]) => Option[Result] = (clause, foundIndex, bindings) =>
   val nextPosition = stack.pop.push(state.copy(index = foundIndex + 1))
   val goalRemainder = state.query.goals.tail
+  val newBindings = merge(state.solution, bindings)
 
   if goalRemainder.isEmpty && clause.body.isEmpty then
-    Some(Result(nextPosition, Some(state.solution ++ bindings)))
+    Some(Result(nextPosition, Some(newBindings)))
   else
-    next(nextPosition.push(State(Query(substitutePredicate(clause.body ::: goalRemainder, bindings)), 0, bindings ++ state.solution, state.depth + 1)))
+    next(nextPosition.push(State(Query(substitutePredicate(clause.body ::: goalRemainder, bindings)), 0, newBindings, state.depth + 1)))
 
     
 def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding]) => Option[Result])(using Program): Option[Result] =
@@ -106,4 +107,13 @@ def substitute(t: Term, s: Binding): Term =
     case _ => t // no substitution required
 
 def merge(left: Set[Binding], right: Set[Binding]): Set[Binding] =
-  ???
+  merge(left.map(m => m.variable -> m.term).toMap, right.map(m => m.variable -> m.term).toMap)
+    .map(m => Binding(m._2,m._1))
+    .toSet
+
+def merge(left: Map[Variable, Term], right: Map[Variable, Term]): Map[Variable, Term] =
+  left.map(l => 
+      l._2 match
+        case v: Variable => l._1 -> right.get(v).getOrElse(v)
+        case _ => l
+    ).toMap ++ right
