@@ -5,6 +5,7 @@ import zio.test.Assertion._
 import zio.test.environment._
 import Prolog.ADT._
 import Prolog._
+import Prolog.Operation._
 
 
 object TestProlog extends DefaultRunnableSpec {
@@ -71,6 +72,11 @@ object TestProlog extends DefaultRunnableSpec {
       val t1 = f(a, Y, b)
       val t2 = f(X, X, Y)
       assert(unify(t1, t2))(equalTo(None))
+    },
+    test("substitutions") {
+      val t = f(g(X, h(X, b)), Z)
+      val sub = Set(a /X, h(a, b) /Z)
+      assert(t.substitute(sub))(equalTo(f(g(a, h(a, b)), h(a, b))))
     }
   )
 }

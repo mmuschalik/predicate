@@ -1,25 +1,43 @@
 package Prolog.ADT
 
 sealed trait Term {
+  type This >: this.type <: Term
+  type Substitution >: this.type <: Term
+
   def /(variable: Variable): Binding = Binding(this, variable)
   def show: String
-  def substitute(binding: Binding): Term
+  def substitute(binding: Binding): Substitution
   def contains(variable: Variable): Boolean
+  def rename(newVersion: Int): This
+}
+
+def test2() = {
+  val a: Variable = variable("A").rename(2)
 }
 
 case class Atom[T](a: T) extends Term {
+  type This = Atom[T]
+  type Substitution = This
+
   def show: String = a.toString
-  def substitute(binding: Binding): Term = this
+  def substitute(binding: Binding): Substitution = this
   def contains(variable: Variable): Boolean = false
+  def rename(newVersion: Int): This = this
 }
 
 case class Variable(name: String, version: Int) extends Term {
+  type This = Variable
+  type Substitution = Term
+
   def show: String = if version == 0 then name else name + version.toString
-  def substitute(binding: Binding): Term = if binding.variable == this then binding.term else this
+  def substitute(binding: Binding): Substitution = if binding.variable == this then binding.term else this
   def contains(variable: Variable): Boolean = this == variable
+  def rename(newVersion: Int): This = if version == 0 then Variable("_" + name, newVersion) else this
 }
 
 case class Predicate(name: String, list: List[Term]) extends Term {
+  type This = Predicate
+  type Substitution = Predicate
 
   def key: String = name + list.size.toString
 
@@ -32,7 +50,11 @@ case class Predicate(name: String, list: List[Term]) extends Term {
       case _ => false
     ).isDefined
 
-  def substitute(binding: Binding): Term = Predicate(name, list.map(m => m.substitute(binding)))
+  def substitute(binding: Binding): Substitution = Predicate(name, list.map(m => m.substitute(binding)))
+
+  def substitute(binding: Set[Binding]): Predicate = binding.foldLeft(this)((a, b) => a.substitute(b))
+
+  def rename(newVersion: Int): This = Predicate(name, list.map(m => m.rename(newVersion)))
 
   def &&(right: Predicate) = ClauseBody(List(this,right))
 
@@ -45,7 +67,9 @@ type Goal = Predicate
 case class Query(goals: List[Goal]) {
   def show: String = goals.map(_.show).mkString(", ")
 }
-case class Clause(head: Goal, body: List[Goal] = Nil)
+case class Clause(head: Goal, body: List[Goal] = Nil) {
+  def rename(newVersion: Int): Clause = Clause(head.rename(newVersion), body.map(g => g.rename(newVersion)))
+}
 case class ClauseBody(body: List[Goal])
 case class Binding(term: Term, variable: Variable)
 case class Program(program: Map[String, List[Clause]]) {
