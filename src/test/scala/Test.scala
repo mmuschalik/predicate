@@ -6,51 +6,16 @@ import zio.test.environment._
 import Prolog.ADT._
 import Prolog._
 import Prolog.Operation._
+import mmuschalik.test.foodtest._
 
 
 object TestProlog extends DefaultRunnableSpec {
-
-  val foods = 
-    Food("burger") :: 
-    Food("sandwich") ::
-    Food("pizza") ::
-    Nil
-
-  val lunchs = Lunch("sandwich") :: Nil
-
-  given program as Program = Program
-    .build
-    .append(foods)
-    .append(lunchs)
-    .append(meal(X) := food(X))
-
   val maxCount = 100
 
   def spec = suite("Test Prolog")(
     opTests,
-    testM("ensure all basic facts are solutions") {
-      for {
-        solution      <- solve(query(food(A))).take(maxCount).runCount
-      } yield assert(solution)(equalTo(foods.size))
-    },
-    testM("ensure basic clause can be solved") {
-      for {
-        solution      <- solve(query(meal(A))).take(maxCount).runCount
-      } yield assert(solution)(equalTo(foods.size))
-    }//,
-    //testM("test query with multiple goals") {
-    //  for {
-    //    solution      <- solve(query(meal(A), lunch(A))).runHead //.aggregate(ZTransducer.fold((0,0))(_ => true)((a, b) => if b == Set("sandwich" / A) then (a._1+1,a._2) else (a._1, a._2+1))).runHead
-    //  } yield assert(solution)(equalTo(Some(Set("sandwich" / Variable("A", 1)))))
-    //}
+    solveTests
   )
-
-  def f(terms: Term*) = predicate("f", terms :_*)
-  def g(terms: Term*) = predicate("g", terms :_*)
-  def h(terms: Term*) = predicate("h", terms :_*)
-  val a = "a"
-  val b = "b"
-  val c = "c"
 
   val opTests = suite("Test Term Operations")(
     test("merge bindings 1") {
@@ -77,6 +42,27 @@ object TestProlog extends DefaultRunnableSpec {
       val t = f(g(X, h(X, b)), Z)
       val sub = Set(a /X, h(a, b) /Z)
       assert(t.substitute(sub))(equalTo(f(g(a, h(a, b)), h(a, b))))
+    }
+  )
+
+  val solveTests = suite("Test solving goals")(
+    testM("ensure all basic facts are solutions") {
+      given program as Program = foodProgram
+      for {
+        solution      <- solve(query(food(A))).take(maxCount).runCount
+      } yield assert(solution)(equalTo(foods.size))
+    },
+    testM("ensure basic clause can be solved") {
+      given program as Program = foodProgram
+      for {
+        solution      <- solve(query(meal(A))).take(maxCount).runCount
+      } yield assert(solution)(equalTo(foods.size))
+    },
+    testM("test query with multiple goals") {
+      given program as Program = foodProgram
+      for {
+        solution      <- solve(query(meal(A), lunch(A))).runHead //.aggregate(ZTransducer.fold((0,0))(_ => true)((a, b) => if b == Set("sandwich" / A) then (a._1+1,a._2) else (a._1, a._2+1))).runHead
+      } yield assert(solution)(equalTo(Some(Set("sandwich" / A))))
     }
   )
 }

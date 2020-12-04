@@ -22,11 +22,18 @@ def unify(stack: List[(Term, Term)], bindings: Set[Binding]): Option[Set[Binding
 def substitute(stack: List[(Term, Term)], binding: Binding): List[(Term, Term)] = 
   stack.map(m => (m._1.substitute(binding), m._2.substitute(binding)))
 
-def substitute(term: Term, bindings: Set[Binding]): Term = 
-  bindings.foldLeft(term)((t, b) => t.substitute(b))
-
 def merge(set: Set[Binding], binding: Binding): Set[Binding] = 
   set.map(s => if s.term == binding.variable then Binding(binding.term, s.variable) else s) + binding
 
 def merge(left: Set[Binding], right: Set[Binding]): Set[Binding] =
   right.foldLeft(left)(merge(_, _))
+
+def substitute(list: List[(Term, Term)], sub: Set[Binding]): List[(Term, Term)] =
+  substituteTerm(list.map(_._1), sub) zip substituteTerm(list.map(_._2), sub)
+
+def substituteTerm(list: List[Term], sub: Set[Binding]): List[Term] =
+  list.map(m => (sub.foldLeft(m)((a, b) => a.substitute(b))))
+
+def substitutePredicate(list: List[Predicate], sub: Set[Binding]): List[Predicate] =
+  list.map(m => (sub.foldLeft(m)((a, b) => a.substitute(b))))
+  

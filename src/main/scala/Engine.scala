@@ -4,21 +4,9 @@ import Prolog.ADT._
 import Prolog.Operation._
 import zio.stream.Stream
 
-class ResultIterator(program: Program, query: Query) extends collection.Iterator[Set[Binding]] {
-  var result: Option[Result] = None
-
-  def hasNext: Boolean = 
-    result = result.fold(Prolog.next(query)(using program))(r => Prolog.next(r.stack)(using program))
-    result.isDefined
-
-  def next(): Set[Binding] = 
-    result
-      .flatMap(f => f.solution)
-      .getOrElse(Set())
-}
-
 def solve(query: Query)(using Program): Stream[Nothing, Set[Binding]] =
   Stream.fromIterable(new Iterable[Set[Binding]] { def iterator = ResultIterator(summon[Program], query) })
+    .map(_.filter(_._2.version == 0))
 
 def next(query: Query)(using p: Program): Option[Result] = 
   next(Stack(State(query, 0, Set(), 1) :: Nil))
@@ -56,14 +44,16 @@ def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding
     .find(_.isDefined)
     .flatten
 
-def buildPredicates[T](facts: List[T])(using BuildPredicate[T]): List[Predicate] = 
-  facts.map(summon[BuildPredicate[T]].build)
 
-def substitute(list: List[(Term, Term)], sub: Set[Binding]): List[(Term, Term)] =
-  substituteTerm(list.map(_._1), sub) zip substituteTerm(list.map(_._2), sub)
+class ResultIterator(program: Program, query: Query) extends collection.Iterator[Set[Binding]] {
+  var result: Option[Result] = None
 
-def substituteTerm(list: List[Term], sub: Set[Binding]): List[Term] =
-  list.map(m => (sub.foldLeft(m)((a, b) => a.substitute(b))))
+  def hasNext: Boolean = 
+    result = result.fold(Prolog.next(query)(using program))(r => Prolog.next(r.stack)(using program))
+    result.isDefined
 
-def substitutePredicate(list: List[Predicate], sub: Set[Binding]): List[Predicate] =
-  list.map(m => (sub.foldLeft(m)((a, b) => a.substitute(b))))
+  def next(): Set[Binding] = 
+    result
+      .flatMap(f => f.solution)
+      .getOrElse(Set())
+}
