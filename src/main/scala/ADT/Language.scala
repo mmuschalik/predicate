@@ -76,12 +76,18 @@ case class Program(program: Map[String, List[Clause]]) {
       this.program ++
       facts
         .map(summon[BuildPredicate[T]].build)
-        .groupBy(k => k.name + k.list.size.toString)
-        .map(g => g._1 -> (g._2.map(x => Clause(x, Nil)))).toMap)
+        .groupBy(k => k.key)
+        .map(g => g._1 -> (g._2.map(x => Clause(x)))).toMap)
   }
 
-  def append(clause: Clause): Program = Program(this.program + 
-    (clause.head.key -> (this.program.get(clause.head.key).getOrElse(List()) ++ List(clause))))
+  def append(clauses: Clause*): Program = clauses.foldLeft(this)((p, clause) => Program(p.program + 
+    (clause.head.key -> (p.get(clause.head) ++ List(clause)))))
+
+  def appendFacts(facts: Predicate*): Program = append(facts.map(m => Clause(m)) :_*)
+
+  def solve(query: Query) = Prolog.solve(query)(using this)
+  def solve(goals: Goal*) = Prolog.solve(Query(goals.toList))(using this)
+  def solve(clause: ClauseBody) = Prolog.solve(Query(clause.body.toList))(using this)
 }
 
 object Program {

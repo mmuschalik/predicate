@@ -48,28 +48,34 @@ object TestProlog extends DefaultRunnableSpec {
 
   val solveTests = suite("Test solving goals")(
     testM("ensure all basic facts are solutions") {
-      given program as Program = foodProgram
-      for {
-        solution      <- solve(query(food(A))).take(maxCount).runCount
-      } yield assert(solution)(equalTo(foods.size))
+      foodProgram
+        .solve(food(A))
+        .take(maxCount)
+        .runCount
+        .map(solution => assert(solution)(equalTo(3)))
     },
     testM("ensure basic clause can be solved") {
-      given program as Program = foodProgram
-      for {
-        solution      <- solve(query(meal(A))).take(maxCount).runCount
-      } yield assert(solution)(equalTo(foods.size))
+      foodProgram
+        .solve(meal(A))
+        .runCount
+        .map(solution => assert(solution)(equalTo(3)))
     },
     testM("test query with multiple goals") {
-      given program as Program = foodProgram
-      for {
-        solution      <- solve(query(meal(A), lunch(A))).runHead //.aggregate(ZTransducer.fold((0,0))(_ => true)((a, b) => if b == Set("sandwich" / A) then (a._1+1,a._2) else (a._1, a._2+1))).runHead
-      } yield assert(solution)(equalTo(Some(Set("sandwich" / A))))
+      foodProgram
+        .solve(meal(A) && lunch(A))
+        .runHead
+        .map(solution => assert(solution)(equalTo(Some(
+          Set(sandwich / A)
+        ))))
     },
     testM("test simple conjunction and disjunction") {
-      given program as Program = happyProgram
-      for {
-        solution      <- solve(query(happy(A))).runCollect
-      } yield assert(solution.toList)(equalTo(List(Set(pat /A), Set(jean /A))))
+      happyProgram
+        .solve(happy(A))
+        .runCollect
+        .map(solution => assert(solution.toSet)(equalTo(Set(
+          Set(pat /A), 
+          Set(jean /A)
+        ))))
     }
 
   )

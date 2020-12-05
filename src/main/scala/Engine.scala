@@ -5,17 +5,22 @@ import Prolog.Operation._
 import zio.stream.Stream
 
 def solve(query: Query)(using Program): Stream[Nothing, Set[Binding]] =
-  Stream.fromIterable(new Iterable[Set[Binding]] { def iterator = ResultIterator(summon[Program], query) })
+  Stream.fromIterable(new Iterable[Set[Binding]] { def iterator = ResultIterator(query) })
     .map(_.filter(_._2.version == 0))
 
 def next(query: Query)(using p: Program): Option[Result] = 
   next(Stack(State(query, 0, Set(), 1) :: Nil))
 
+def getGoal(g: Goal): Goal =
+  g match
+    case Predicate("call", (p: Predicate) :: Nil) => getGoal(p)
+    case _ => g
+
 def next(stack: Stack[State])(using Program): Option[Result] = 
   //stack.peek.foreach(f => println(f.query.show))
   for {
     state     <- stack.peek
-    goal      <- state.query.goals.headOption
+    goal      <- state.query.goals.headOption.map(getGoal)
     result    <- findUnifiedClause(state, goal, getResult(stack, state))
                    .orElse(next(stack.pop))
   } yield result
@@ -45,11 +50,11 @@ def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding
     .flatten
 
 
-class ResultIterator(program: Program, query: Query) extends collection.Iterator[Set[Binding]] {
+class ResultIterator(query: Query)(using program: Program) extends collection.Iterator[Set[Binding]] {
   var result: Option[Result] = None
 
   def hasNext: Boolean = 
-    result = result.fold(Prolog.next(query)(using program))(r => Prolog.next(r.stack)(using program))
+    result = result.fold(Prolog.next(query))(r => Prolog.next(r.stack))
     result.isDefined
 
   def next(): Set[Binding] = 

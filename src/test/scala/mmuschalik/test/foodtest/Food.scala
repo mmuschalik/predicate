@@ -2,17 +2,25 @@ package mmuschalik.test.foodtest
 
 import Prolog.ADT._
 
-val foods = 
-  Food("burger") :: 
-  Food("sandwich") ::
-  Food("pizza") ::
-  Nil
+val burger = "burger"
+val sandwich = "sandwich"
+val pizza = "pizza"
 
-val lunchs = Lunch("sandwich") :: Nil
 
 val foodProgram = Program
   .build
-  .append(foods)
-  .append(lunchs)
-  .append(meal(X) := food(X))
+  .appendFacts(
+                  food(burger),
+                  food(sandwich),
+                  food(pizza),
+                  lunch(sandwich)
+  )
+  .append(
+                  meal(X) := food(X)
+  )
 
+
+def food(name: Term): Predicate = predicate("food", name)
+def lunch(name: Term): Predicate = predicate("lunch", name)
+def dinner(name: Term): Predicate = predicate("dinner", name)
+def meal(name: Term): Predicate = predicate("meal", name)
