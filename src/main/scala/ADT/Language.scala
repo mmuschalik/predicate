@@ -11,10 +11,6 @@ sealed trait Term {
   def rename(newVersion: Int): This
 }
 
-def test2() = {
-  val a: Variable = variable("A").rename(2)
-}
-
 case class Atom[T](a: T) extends Term {
   type This = Atom[T]
   type Substitution = This

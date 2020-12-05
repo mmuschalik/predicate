@@ -7,6 +7,7 @@ import Prolog.ADT._
 import Prolog._
 import Prolog.Operation._
 import mmuschalik.test.foodtest._
+import mmuschalik.test.happytest._
 
 
 object TestProlog extends DefaultRunnableSpec {
@@ -63,7 +64,14 @@ object TestProlog extends DefaultRunnableSpec {
       for {
         solution      <- solve(query(meal(A), lunch(A))).runHead //.aggregate(ZTransducer.fold((0,0))(_ => true)((a, b) => if b == Set("sandwich" / A) then (a._1+1,a._2) else (a._1, a._2+1))).runHead
       } yield assert(solution)(equalTo(Some(Set("sandwich" / A))))
+    },
+    testM("test simple conjunction and disjunction") {
+      given program as Program = happyProgram
+      for {
+        solution      <- solve(query(happy(A))).runCollect
+      } yield assert(solution.toList)(equalTo(List(Set(pat /A), Set(jean /A))))
     }
+
   )
 }
 
