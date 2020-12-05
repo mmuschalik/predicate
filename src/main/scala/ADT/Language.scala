@@ -52,11 +52,11 @@ case class Predicate(name: String, list: List[Term]) extends Term {
 
   def rename(newVersion: Int): This = Predicate(name, list.map(m => m.rename(newVersion)))
 
-  def &&(right: Predicate) = ClauseBody(List(this,right))
+  def &&(right: Predicate) = Query(List(this,right))
 
   def :=(body: Predicate) = Clause(this, body :: Nil)
 
-  def :=(list: ClauseBody) = Clause(this, list.body)
+  def :=(query: Query) = Clause(this, query.goals)
 }
 
 type Goal = Predicate
@@ -66,7 +66,6 @@ case class Query(goals: List[Goal]) {
 case class Clause(head: Goal, body: List[Goal] = Nil) {
   def rename(newVersion: Int): Clause = Clause(head.rename(newVersion), body.map(g => g.rename(newVersion)))
 }
-case class ClauseBody(body: List[Goal])
 case class Binding(term: Term, variable: Variable)
 case class Program(program: Map[String, List[Clause]]) {
   def get(goal: Goal): List[Clause] = program.getOrElse(goal.name + goal.list.size.toString, Nil)
@@ -87,7 +86,6 @@ case class Program(program: Map[String, List[Clause]]) {
 
   def solve(query: Query) = Prolog.solve(query)(using this)
   def solve(goals: Goal*) = Prolog.solve(Query(goals.toList))(using this)
-  def solve(clause: ClauseBody) = Prolog.solve(Query(clause.body.toList))(using this)
 }
 
 object Program {

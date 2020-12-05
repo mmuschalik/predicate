@@ -82,7 +82,7 @@ object TestProlog extends DefaultRunnableSpec {
       .map(s => assert(s.toSet)(equalTo(set.toSet)))
   }
 
-  def testProgram(msg: String)(program: Program, query: ClauseBody, set: Set[Binding]*) = testM(msg) {
+  def testProgram(msg: String)(program: Program, query: Query, set: Set[Binding]*) = testM(msg) {
     program
       .solve(query)
       .runCollect
