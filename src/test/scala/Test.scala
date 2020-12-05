@@ -11,7 +11,6 @@ import mmuschalik.test.happytest._
 
 
 object TestProlog extends DefaultRunnableSpec {
-  val maxCount = 100
 
   def spec = suite("Test Prolog")(
     opTests,
@@ -47,37 +46,47 @@ object TestProlog extends DefaultRunnableSpec {
   )
 
   val solveTests = suite("Test solving goals")(
-    testM("ensure all basic facts are solutions") {
-      foodProgram
-        .solve(food(A))
-        .take(maxCount)
-        .runCount
-        .map(solution => assert(solution)(equalTo(3)))
-    },
-    testM("ensure basic clause can be solved") {
-      foodProgram
-        .solve(meal(A))
-        .runCount
-        .map(solution => assert(solution)(equalTo(3)))
-    },
-    testM("test query with multiple goals") {
-      foodProgram
-        .solve(meal(A) && lunch(A))
-        .runHead
-        .map(solution => assert(solution)(equalTo(Some(
-          Set(sandwich / A)
-        ))))
-    },
-    testM("test simple conjunction and disjunction") {
-      happyProgram
-        .solve(happy(A))
-        .runCollect
-        .map(solution => assert(solution.toSet)(equalTo(Set(
-          Set(pat /A), 
-          Set(jean /A)
-        ))))
-    }
-
+    testProgram("ensure all basic facts are solutions")(
+      foodProgram,
+      food(A), 
+        Set(burger /A),
+        Set(sandwich /A),
+        Set(pizza /A),
+      )
+    ,
+    testProgram("ensure basic clause can be solved")(
+      foodProgram,
+      meal(A), 
+        Set(burger /A),
+        Set(sandwich /A),
+        Set(pizza /A),
+      )
+    ,
+    testProgram("test query with multiple goals")(
+      foodProgram,
+      meal(A) && lunch(A),
+        Set(sandwich / A)
+    ),
+    testProgram("test simple conjunction and disjunction")(
+      happyProgram,
+      happy(A),
+        Set(pat /A), 
+        Set(jean /A)
+    )
   )
+
+  def testProgram(msg: String)(program: Program, query: Goal, set: Set[Binding]*) = testM(msg) {
+    program
+      .solve(query)
+      .runCollect
+      .map(s => assert(s.toSet)(equalTo(set.toSet)))
+  }
+
+  def testProgram(msg: String)(program: Program, query: ClauseBody, set: Set[Binding]*) = testM(msg) {
+    program
+      .solve(query)
+      .runCollect
+      .map(s => assert(s.toSet)(equalTo(set.toSet)))
+  }
 }
 
