@@ -31,7 +31,7 @@ case class Variable(name: String, version: Int) extends Term {
   def rename(newVersion: Int): This = if version == 0 then Variable("_" + name, newVersion) else this
 }
 
-case class Predicate(name: String, list: List[Term]) extends Term {
+case class Predicate(name: String, list: List[Term] = Nil) extends Term {
   type This = Predicate
   type Substitution = Predicate
 
@@ -62,11 +62,15 @@ case class Predicate(name: String, list: List[Term]) extends Term {
 type Goal = Predicate
 case class Query(goals: List[Goal]) {
   def show: String = goals.map(_.show).mkString(", ")
+
+  def &&(right: Goal) = Query(goals ++ List(right))
 }
 case class Clause(head: Goal, body: List[Goal] = Nil) {
   def rename(newVersion: Int): Clause = Clause(head.rename(newVersion), body.map(g => g.rename(newVersion)))
 }
-case class Binding(term: Term, variable: Variable)
+case class Binding(term: Term, variable: Variable) {
+  def show: String = term.show + " /" + variable.show
+}
 case class Program(program: Map[String, List[Clause]]) {
   def get(goal: Goal): List[Clause] = program.getOrElse(goal.name + goal.list.size.toString, Nil)
 
@@ -88,8 +92,27 @@ case class Program(program: Map[String, List[Clause]]) {
   def solve(goals: Goal*) = Prolog.solve(Query(goals.toList))(using this)
 }
 
+
+
+val A = variable("A")
+val B = variable("B")
+val C = variable("C")
+val X = variable("X")
+val Y = variable("Y")
+val Z = variable("Z")
+
+val cut = Predicate("cut")
+val pFalse = Predicate("false")
+def not(t: Term) = Predicate("not", t :: Nil)
+def call(t: Term) = Predicate("call", t :: Nil)
+
 object Program {
-  def build: Program = Program(Map())
+  def build: Program = 
+    Program(Map())
+      .append(
+        not(A) := call(A) && cut && false,
+        not(A)
+      )
 }
 
 trait BuildPredicate[T] {
@@ -103,13 +126,8 @@ def query(goals: Goal*): Query = Query(goals.toList)
 
 // Convenience functions
 
-val A = variable("A")
-val B = variable("B")
-val C = variable("C")
-val X = variable("X")
-val Y = variable("Y")
-val Z = variable("Z")
-
 import scala.language.implicitConversions
 implicit def fromInt(a: Int): Term = atom(a)
 implicit def fromString(a: String): Term = atom(a)
+implicit def fromBool(a: Boolean): Predicate = pFalse
+implicit def fromPredicate(p: Predicate): Clause = Clause(p)

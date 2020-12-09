@@ -13,7 +13,7 @@ import mmuschalik.test.happytest._
 object TestProlog extends DefaultRunnableSpec {
 
   def spec = suite("Test Prolog")(
-    opTests,
+    //opTests,
     solveTests
   )
 
@@ -52,26 +52,43 @@ object TestProlog extends DefaultRunnableSpec {
         Set(burger /A),
         Set(sandwich /A),
         Set(pizza /A),
-      )
-    ,
+    ),
     testProgram("ensure basic clause can be solved")(
       foodProgram,
       meal(A), 
         Set(burger /A),
         Set(sandwich /A),
         Set(pizza /A),
-      )
-    ,
+    ), 
     testProgram("test query with multiple goals")(
       foodProgram,
       meal(A) && lunch(A),
         Set(sandwich / A)
-    ),
+    ) ,
     testProgram("test simple conjunction and disjunction")(
       happyProgram,
       happy(A),
         Set(pat /A), 
         Set(jean /A)
+    ),
+    /*testProgram("basic cut test 1")(
+      happyProgram,
+      woman(A) && cut, 
+        Set(jean /A),
+    ),*/
+    testProgram("basic cut test 2")(
+      happyProgram,
+      wealthy(A) && cut && man(A), 
+        Set(fred /A)
+    ),
+    testProgram("test false")(
+      happyProgram,
+      wealthy(A) && false
+    ),
+    testProgram("basic not")(
+      happyProgram,
+      wealthy(A) && Prolog.ADT.not(man(A)), 
+        Set(pat /A)
     )
   )
 

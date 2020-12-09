@@ -5,7 +5,8 @@ import Prolog.Operation._
 import zio.stream.Stream
 
 def solve(query: Query)(using Program): Stream[Nothing, Set[Binding]] =
-  Stream.fromIterable(new Iterable[Set[Binding]] { def iterator = ResultIterator(query) })
+  val i = ResultIterator(query).to(Iterable)
+  Stream.fromIterable(i)
     .map(_.filter(_._2.version == 0))
 
 def next(query: Query)(using p: Program): Option[Result] = 
@@ -16,13 +17,32 @@ def getGoal(g: Goal): Goal =
     case Predicate("call", (p: Predicate) :: Nil) => getGoal(p)
     case _ => g
 
+    /*
+def next(subQuery: Query, stack: Stack[State])(using Program): Option[Result] =
+  stack.peek.foreach(f => println("?: " + f.query.show))
+  if subQuery.goals.contains(cut) then
+    next(stack)
+      .flatMap(r => {
+        println("cut returned")
+        val n = r.stack.peek.fold(Stack.empty)(s => stack.pop.pop.push(s))
+        // check could have no more queries, in that case, just return the result, dont do next
+        next(n)
+        }) // returned from cut, continue on with the stack from the result    [maybe think of looking for additional !]
+  else
+    next(stack) */
+
 def next(stack: Stack[State])(using Program): Option[Result] = 
-  //stack.peek.foreach(f => println(f.query.show))
+  stack.peek.foreach(f => println("?: " + f.query.show + " " + f.index.toString))
   for {
     state     <- stack.peek
     goal      <- state.query.goals.headOption.map(getGoal)
-    result    <- findUnifiedClause(state, goal, getResult(stack, state))
-                   .orElse(next(stack.pop))
+    if goal != pFalse
+    result    <- 
+      if(goal == cut) then 
+        Some(Result(stack.pop.push(state.copy(query = Query(state.query.goals.tail))), Some(state.solution)))
+      else
+        findUnifiedClause(state, goal, getResult(stack, state))
+          .orElse(next(stack.pop))
   } yield result
 
 def getResult(stack: Stack[State], state: State)(using Program): (Clause, Int, Set[Binding]) => Option[Result] = (clause, foundIndex, bindings) =>
@@ -30,7 +50,11 @@ def getResult(stack: Stack[State], state: State)(using Program): (Clause, Int, S
   val goalRemainder = state.query.goals.tail
   val newBindings = merge(state.solution, bindings)
 
+  println(bindings.map(_.show).mkString(", "))
+
   if goalRemainder.isEmpty && clause.body.isEmpty then
+    println("solved. ")
+    println(nextPosition)
     Some(Result(nextPosition, Some(newBindings)))
   else
     next(nextPosition.push(State(Query(substitutePredicate(clause.body ::: goalRemainder, bindings)), 0, newBindings, state.depth + 1)))
@@ -43,6 +67,8 @@ def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding
     .map { (clause, index) => 
       val substitutedClause = clause.rename(state.depth)
 
+      println(goal.show + " = " + substitutedClause.head.show)
+
       unify(goal, substitutedClause.head)
         .flatMap(f => fetch(substitutedClause, index, f))
     }
@@ -52,10 +78,12 @@ def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding
 
 class ResultIterator(query: Query)(using program: Program) extends collection.Iterator[Set[Binding]] {
   var result: Option[Result] = None
+  var start = true
 
   def hasNext: Boolean = 
-    result = result.fold(Prolog.next(query))(r => Prolog.next(r.stack))
-    result.isDefined
+      result = if start then Prolog.next(query) else result.flatMap(r => Prolog.next(r.stack))
+      start = false
+      result.isDefined
 
   def next(): Set[Binding] = 
     result
