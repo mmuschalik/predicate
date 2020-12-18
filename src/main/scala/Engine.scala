@@ -39,9 +39,9 @@ def next(stack: Stack[State])(using Program): Option[Result] =
     if goal != pFalse
     result    <- 
       if(goal == cut) then 
-        Some(Result(stack.pop.push(state.copy(query = Query(state.query.goals.tail))), Some(state.solution)))
+        Some(Result(Stack.empty.push(state.copy(query = Query(state.query.goals.tail))), Some(state.solution), true))
       else
-        findUnifiedClause(state, goal, getResult(stack, state))
+        findUnifiedClause(stack, state, goal, getResult(stack, state))
           .orElse(next(stack.pop))
   } yield result
 
@@ -54,13 +54,12 @@ def getResult(stack: Stack[State], state: State)(using Program): (Clause, Int, S
 
   if goalRemainder.isEmpty && clause.body.isEmpty then
     println("solved. ")
-    println(nextPosition)
     Some(Result(nextPosition, Some(newBindings)))
   else
     next(nextPosition.push(State(Query(substitutePredicate(clause.body ::: goalRemainder, bindings)), 0, newBindings, state.depth + 1)))
 
     
-def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding]) => Option[Result])(using Program): Option[Result] =
+def findUnifiedClause(stack: Stack[State], state: State, goal: Goal, fetch: (Clause, Int, Set[Binding]) => Option[Result])(using Program): Option[Result] =
   LazyList(summon[Program].get(goal) :_*)
     .zipWithIndex
     .drop(state.index)
@@ -69,11 +68,23 @@ def findUnifiedClause(state: State, goal: Goal, fetch: (Clause, Int, Set[Binding
 
       println(goal.show + " = " + substitutedClause.head.show)
 
-      unify(goal, substitutedClause.head)
-        .flatMap(f => fetch(substitutedClause, index, f))
+      for {
+        unified <- unify(goal, substitutedClause.head)
+        result <- fetch(substitutedClause, index, unified)
+      } yield (clause, result)
     }
-    .find(_.isDefined)
-    .flatten
+    .find(f => f.isDefined)
+    .flatMap(f => f.flatMap { m => 
+      println("yes, got a result.")
+      println(m._1)
+      // passed the cut on this clause, try solving the rest
+      if(m._1.body.contains(cut) && m._2.isCut) then
+        println("cut found here, continue on...")
+        next(m._2.stack.peek.fold(Stack.empty)(s => stack.pop.push(s)))
+      else // either cutting back further or a normal valid result, we can return
+        println("yeah done.")
+        Some(m._2)
+      })
 
 
 class ResultIterator(query: Query)(using program: Program) extends collection.Iterator[Set[Binding]] {
