@@ -88,8 +88,8 @@ case class Program(program: Map[String, List[Clause]]) {
 
   def appendFacts(facts: Predicate*): Program = append(facts.map(m => Clause(m)) :_*)
 
-  def solve(query: Query) = Prolog.solve(query)(using this)
-  def solve(goals: Goal*) = Prolog.solve(Query(goals.toList))(using this)
+  def solve(query: Query) = MyQueueP.solve(query)(using this)
+  def solve(goals: Goal*) = MyQueueP.solve(Query(goals.toList))(using this)
 }
 
 

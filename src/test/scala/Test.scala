@@ -14,8 +14,8 @@ object TestProlog extends DefaultRunnableSpec {
 
   def spec = suite("Test Prolog")(
     //opTests,
-    //solveTests
-    newTests
+    solveTests
+    //newTests
   )
 
   val opTests = suite("Test Term Operations")(
@@ -47,7 +47,7 @@ object TestProlog extends DefaultRunnableSpec {
   )
 
   val solveTests = suite("Test solving goals")(
-    /* testProgram("ensure all basic facts are solutions")(
+    testProgram("ensure all basic facts are solutions")(
       foodProgram,
       food(A), 
         Set(burger /A),
@@ -72,7 +72,7 @@ object TestProlog extends DefaultRunnableSpec {
         Set(pat /A), 
         Set(jean /A)
     ),
-    /*testProgram("basic cut test 1")(
+    testProgram("basic cut test 1")(
       happyProgram,
       woman(A) && cut, 
         Set(jean /A),
@@ -81,11 +81,11 @@ object TestProlog extends DefaultRunnableSpec {
       happyProgram,
       wealthy(A) && cut && man(A), 
         Set(fred /A)
-    ), */
+    ),
     testProgram("test false")(
       happyProgram,
       wealthy(A) && false
-    ), */
+    ),
     testProgram("basic not")(
       happyProgram,
       wealthy(A) && Prolog.ADT.not(man(A)), 
@@ -93,29 +93,18 @@ object TestProlog extends DefaultRunnableSpec {
     )
   )
 
-  val newTests = suite("Test solving goals")(
-    testNewProgram("t1")(
-      foodProgram, meal(A) && lunch(A)
-    )
-  )
-
   def testProgram(msg: String)(program: Program, query: Goal, set: Set[Binding]*) = testM(msg) {
     program
       .solve(query)
-      .runCollect
+      .flatMap(_.runCollect)
       .map(s => assert(s.toSet)(equalTo(set.toSet)))
   }
 
   def testProgram(msg: String)(program: Program, query: Query, set: Set[Binding]*) = testM(msg) {
     program
       .solve(query)
-      .runCollect
+      .flatMap(_.runCollect)
       .map(s => assert(s.toSet)(equalTo(set.toSet)))
-  }
-
-  def testNewProgram(msg: String)(program: Program, query: Query, set: Set[Binding]*) = test(msg) {
-    MyQueueP.solve(query, Set(), 1)(using program)
-    assert(true)(equalTo(true))
   }
 }
 
