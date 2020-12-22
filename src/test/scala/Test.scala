@@ -13,9 +13,8 @@ import mmuschalik.test.happytest._
 object TestProlog extends DefaultRunnableSpec {
 
   def spec = suite("Test Prolog")(
-    //opTests,
+    opTests,
     solveTests
-    //newTests
   )
 
   val opTests = suite("Test Term Operations")(

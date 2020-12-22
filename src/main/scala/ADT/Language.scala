@@ -1,6 +1,6 @@
 package Prolog.ADT
 
-sealed trait Term {
+sealed trait Term:
   type This >: this.type <: Term
   type Substitution >: this.type <: Term
 
@@ -9,9 +9,8 @@ sealed trait Term {
   def substitute(binding: Binding): Substitution
   def contains(variable: Variable): Boolean
   def rename(newVersion: Int): This
-}
 
-case class Atom[T](a: T) extends Term {
+case class Atom[T](a: T) extends Term:
   type This = Atom[T]
   type Substitution = This
 
@@ -19,9 +18,8 @@ case class Atom[T](a: T) extends Term {
   def substitute(binding: Binding): Substitution = this
   def contains(variable: Variable): Boolean = false
   def rename(newVersion: Int): This = this
-}
 
-case class Variable(name: String, version: Int) extends Term {
+case class Variable(name: String, version: Int) extends Term:
   type This = Variable
   type Substitution = Term
 
@@ -29,9 +27,8 @@ case class Variable(name: String, version: Int) extends Term {
   def substitute(binding: Binding): Substitution = if binding.variable == this then binding.term else this
   def contains(variable: Variable): Boolean = this == variable
   def rename(newVersion: Int): This = if version == 0 then Variable("_" + name, newVersion) else this
-}
 
-case class Predicate(name: String, list: List[Term] = Nil) extends Term {
+case class Predicate(name: String, list: List[Term] = Nil) extends Term:
   type This = Predicate
   type Substitution = Predicate
 
@@ -57,31 +54,31 @@ case class Predicate(name: String, list: List[Term] = Nil) extends Term {
   def :=(body: Predicate) = Clause(this, body :: Nil)
 
   def :=(query: Query) = Clause(this, query.goals)
-}
+
+end Predicate
 
 type Goal = Predicate
-case class Query(goals: List[Goal]) {
+case class Query(goals: List[Goal]):
   def show: String = goals.map(_.show).mkString(", ")
 
   def &&(right: Goal) = Query(goals ++ List(right))
-}
-case class Clause(head: Goal, body: List[Goal] = Nil) {
+
+case class Clause(head: Goal, body: List[Goal] = Nil):
   def rename(newVersion: Int): Clause = Clause(head.rename(newVersion), body.map(g => g.rename(newVersion)))
-}
-case class Binding(term: Term, variable: Variable) {
+
+case class Binding(term: Term, variable: Variable):
   def show: String = term.show + " /" + variable.show
-}
-case class Program(program: Map[String, List[Clause]]) {
+
+case class Program(program: Map[String, List[Clause]]):
   def get(goal: Goal): List[Clause] = program.getOrElse(goal.name + goal.list.size.toString, Nil)
 
-  def append[T](facts: List[T])(using BuildPredicate[T]): Program = {
+  def append[T](facts: List[T])(using BuildPredicate[T]): Program = 
     Program(
       this.program ++
       facts
         .map(summon[BuildPredicate[T]].build)
         .groupBy(k => k.key)
         .map(g => g._1 -> (g._2.map(x => Clause(x)))).toMap)
-  }
 
   def append(clauses: Clause*): Program = clauses.foldLeft(this)((p, clause) => Program(p.program + 
     (clause.head.key -> (p.get(clause.head) ++ List(clause)))))
@@ -90,8 +87,6 @@ case class Program(program: Map[String, List[Clause]]) {
 
   def solve(query: Query) = MyQueueP.solve(query)(using this)
   def solve(goals: Goal*) = MyQueueP.solve(Query(goals.toList))(using this)
-}
-
 
 
 val A = variable("A")
@@ -106,18 +101,16 @@ val pFalse = Predicate("false")
 def not(t: Term) = Predicate("not", t :: Nil)
 def call(t: Term) = Predicate("call", t :: Nil)
 
-object Program {
+object Program:
   def build: Program = 
     Program(Map())
       .append(
         not(A) := call(A) && cut && false,
         not(A)
       )
-}
 
-trait BuildPredicate[T] {
+trait BuildPredicate[T]:
   def build(t: T): Predicate
-}
 
 def atom[T]: T => Term = t => Atom(t)
 def variable(name: String): Variable = Variable(name, 0)
