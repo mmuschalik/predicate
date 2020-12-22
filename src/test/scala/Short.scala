@@ -1,5 +1,4 @@
-import Prolog.ADT._
-import Prolog._
+import mmuschalik.ADT._
 
 def f(terms: Term*) = predicate("f", terms :_*)
 def g(terms: Term*) = predicate("g", terms :_*)

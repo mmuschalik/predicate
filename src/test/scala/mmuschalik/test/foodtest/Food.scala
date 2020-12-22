@@ -1,6 +1,6 @@
 package mmuschalik.test.foodtest
 
-import Prolog.ADT._
+import mmuschalik.ADT._
 
 val burger = "burger"
 val sandwich = "sandwich"

@@ -3,16 +3,15 @@ import zio.stream._
 import zio.test._
 import zio.test.Assertion._
 import zio.test.environment._
-import Prolog.ADT._
-import Prolog._
-import Prolog.Operation._
+import mmuschalik.ADT._
+import mmuschalik.Operation._
 import mmuschalik.test.foodtest._
 import mmuschalik.test.happytest._
 
 
 object TestProlog extends DefaultRunnableSpec {
 
-  def spec = suite("Test Prolog")(
+  def spec = suite("Test All")(
     opTests,
     solveTests
   )
@@ -87,7 +86,7 @@ object TestProlog extends DefaultRunnableSpec {
     ),
     testProgram("basic not")(
       happyProgram,
-      wealthy(A) && Prolog.ADT.not(man(A)), 
+      wealthy(A) && mmuschalik.ADT.not(man(A)), 
         Set(pat /A)
     )
   )

@@ -1,4 +1,4 @@
-package Prolog.ADT
+package mmuschalik.ADT
 
 sealed trait Term:
   type This >: this.type <: Term

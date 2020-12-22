@@ -1,6 +1,6 @@
 package mmuschalik.test.happytest
 
-import Prolog.ADT._
+import mmuschalik.ADT._
 
 val jean = "jean"
 val fred = "fred"

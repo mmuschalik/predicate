@@ -1,8 +1,8 @@
 package MyQueueP
 
 import zio._
-import Prolog.ADT._
-import Prolog.Operation._
+import mmuschalik.ADT._
+import mmuschalik.Operation._
 import zio.duration._
 import zio.stream._
 

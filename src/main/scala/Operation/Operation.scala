@@ -1,6 +1,6 @@
-package Prolog.Operation
+package mmuschalik.Operation
 
-import Prolog.ADT._
+import mmuschalik.ADT._
 
 def unify(x: Term, y: Term): Option[Set[Binding]] =
   unify(List((x, y)), Set())

@@ -1,5 +1,5 @@
-import Prolog._
-import Prolog.ADT._
+import mmuschalik._
+import mmuschalik.ADT._
 import zio.{App,Task,IO,Runtime}
 import zio.console._
 
