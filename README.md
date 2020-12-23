@@ -1,10 +1,30 @@
-## sbt project cross-compiled with Dotty and Scala 2
+## Welcome to predicate
+
+This project is inspired by the logic programming language prolog. It's main objective is to bring the same problem solving capabilities prolog has to the JVM, using a execution strategy called chronological backtracking.
 
 ### Usage
 
-This is a normal sbt project, you can compile code with `sbt compile` and run it
-with `sbt run`, `sbt console` will start a Dotty REPL. For more information on
-cross-compilation in sbt, see <https://www.scala-sbt.org/1.x/docs/Cross-Build.html>.
+```scala
+Program
+    .build
+    .append(
+                woman(jean),
+                woman(pat),
+                man(fred),
+                wealthy(fred),
+                wealthy(pat),
+                wise(jean),
 
-For more information on the sbt-dotty plugin, see the
-[dotty-example-project](https://github.com/lampepfl/dotty-example-project/blob/master/README.md).
+                happy(X) := woman(X) && wealthy(X),
+                happy(X) := woman(X) && wise(X)
+    )
+    .solve(happy(A))
+
+```
+
+The result will yield a set of solutions:
+
+```
+pat /A
+jean /A
+```

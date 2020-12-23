@@ -2,8 +2,6 @@ package mmuschalik.predicate
 
 import mmuschalik.predicate.engine.solve
 
-type Goal = Predicate
-
 case class Query(goals: List[Goal]):
 
   def show: String = 

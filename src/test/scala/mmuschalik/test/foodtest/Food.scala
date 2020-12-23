@@ -7,17 +7,17 @@ val sandwich = "sandwich"
 val pizza = "pizza"
 
 
-val foodProgram = Program
-  .build
-  .appendFacts(
-                  food(burger),
-                  food(sandwich),
-                  food(pizza),
-                  lunch(sandwich)
-  )
-  .append(
-                  meal(X) := food(X)
-  )
+val foodProgram = 
+  Program
+    .build
+    .append(
+              food(burger),
+              food(sandwich),
+              food(pizza),
+              lunch(sandwich),
+
+              meal(X) := food(X)
+    )
 
 
 def food(name: Term): Predicate = predicate("food", name)

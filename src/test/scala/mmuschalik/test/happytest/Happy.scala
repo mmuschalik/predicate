@@ -6,23 +6,21 @@ val jean = "jean"
 val fred = "fred"
 val pat = "pat"
 
-val happyProgram = Program
-  .build
-  .appendFacts(
-                  woman(jean),
-                  woman(pat),
-                  man(fred),
-                  wealthy(fred),
-                  wealthy(pat),
-                  wise(jean)
-  )
-  .append(
-                  happy(X) := woman(X) && wealthy(X),
-                  happy(X) := woman(X) && wise(X)
-  )
+val happyProgram = 
+  Program
+    .build
+    .append(
+              woman(jean),
+              woman(pat),
+              man(fred),
+              wealthy(fred),
+              wealthy(pat),
+              wise(jean),
 
+              happy(X) := woman(X) && wealthy(X),
+              happy(X) := woman(X) && wise(X)
+    )
 
-// --Helpers
 
 def woman(name: Term) = predicate("woman", name)
 def man(name: Term) = predicate("man", name)

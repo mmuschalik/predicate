@@ -93,3 +93,5 @@ case class Predicate(name: String, list: List[Term] = Nil) extends Term:
     Clause(this, query.goals)
 
 end Predicate
+
+type Goal = Predicate
