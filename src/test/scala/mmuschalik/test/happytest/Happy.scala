@@ -1,6 +1,6 @@
 package mmuschalik.test.happytest
 
-import mmuschalik.ADT._
+import mmuschalik.predicate._
 
 val jean = "jean"
 val fred = "fred"

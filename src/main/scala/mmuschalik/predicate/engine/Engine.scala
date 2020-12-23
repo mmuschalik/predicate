@@ -1,8 +1,7 @@
-package MyQueueP
+package mmuschalik.predicate.engine
 
 import zio._
-import mmuschalik.ADT._
-import mmuschalik.Operation._
+import mmuschalik.predicate._
 import zio.duration._
 import zio.stream._
 
@@ -26,14 +25,14 @@ def solve(query: Query)(using Program): ZIO[Any, Nothing, ZStream[Any, Nothing, 
     Stream.fromEffect(remainder.join)
       .flatMap(f => Stream(f :_ *))
 
-def f[A](list: LazyList[ZIO[Any, Nothing, A]], condition: A => Boolean): ZIO[Any, Nothing, Option[A]] =
+def evalWithBreak[A](list: LazyList[ZIO[Any, Nothing, A]], condition: A => Boolean): ZIO[Any, Nothing, Option[A]] =
   list
     .headOption
     .fold(ZIO.succeed(None))
     (head =>
       for
         a <- head
-        r <- if condition(a) then ZIO.succeed(Some(a)) else f(list.tail, condition)
+        r <- if condition(a) then ZIO.succeed(Some(a)) else evalWithBreak(list.tail, condition)
       yield r
     )
 
@@ -60,26 +59,28 @@ def solve(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Bin
             case p: Predicate => solve(Query(p :: query.goals.tail), bindings, depth, queue)
             case _ => ZIO.succeed(Done)
         case _ => 
-          f(LazyList(summon[Program].get(goal) :_*)
-            .map { clause => 
+          evalWithBreak(
+            LazyList(summon[Program].get(goal) :_*)
+              .map { clause => 
 
-              val substitutedClause = clause.rename(depth)
+                val substitutedClause = clause.rename(depth)
 
-              unify(goal, substitutedClause.head)
-                .fold(ZIO.succeed((Done, clause))) { unify => 
-                  solve(
-                        Query(substitutePredicate(substitutedClause.body ::: query.goals.tail, unify)), 
-                        merge(bindings, unify), 
-                        depth + 1,
-                        queue)
-                    .map((_, clause))
-                }
-            }, (res: Result, clause: Clause) => isCut(res))
-            .flatMap(
-              _.fold(ZIO.succeed(Done))
-                ((res, clause) => // this has to be a cut, 
-                  res match
-                    case c: Cut if clause.body.contains(cut) =>
-                      solve(c.query, c.bindings, c.depth, queue) // this could still return a cut (if more exist)
-                    case r => ZIO.succeed(r)))
+                unify(goal, substitutedClause.head)
+                  .fold(ZIO.succeed((Done, clause))) { unify => 
+                    solve(
+                          Query(substitutePredicate(substitutedClause.body ::: query.goals.tail, unify)), 
+                          merge(bindings, unify), 
+                          depth + 1,
+                          queue)
+                      .map((_, clause))
+                  }
+              }, 
+            (res: Result, clause: Clause) => isCut(res))
+          .flatMap(
+            _.fold(ZIO.succeed(Done))
+              ((res, clause) => // this has to be a cut, 
+                res match
+                  case c: Cut if clause.body.contains(cut) =>
+                    solve(c.query, c.bindings, c.depth, queue) // this could still return a cut (if more exist)
+                  case r => ZIO.succeed(r)))
     )

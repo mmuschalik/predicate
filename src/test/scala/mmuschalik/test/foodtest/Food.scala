@@ -1,6 +1,6 @@
 package mmuschalik.test.foodtest
 
-import mmuschalik.ADT._
+import mmuschalik.predicate._
 
 val burger = "burger"
 val sandwich = "sandwich"

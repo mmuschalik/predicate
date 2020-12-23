@@ -1,4 +1,6 @@
-package mmuschalik.ADT
+package mmuschalik.predicate
+
+import mmuschalik.predicate.engine.solve
 
 sealed trait Term:
   type This >: this.type <: Term
@@ -85,8 +87,8 @@ case class Program(program: Map[String, List[Clause]]):
 
   def appendFacts(facts: Predicate*): Program = append(facts.map(m => Clause(m)) :_*)
 
-  def solve(query: Query) = MyQueueP.solve(query)(using this)
-  def solve(goals: Goal*) = MyQueueP.solve(Query(goals.toList))(using this)
+  def solve(query: Query) = engine.solve(query)(using this)
+  def solve(goals: Goal*) = engine.solve(Query(goals.toList))(using this)
 
 
 val A = variable("A")
@@ -97,7 +99,6 @@ val Y = variable("Y")
 val Z = variable("Z")
 
 val cut = Predicate("cut")
-val pFalse = Predicate("false")
 def not(t: Term) = Predicate("not", t :: Nil)
 def call(t: Term) = Predicate("call", t :: Nil)
 
@@ -105,7 +106,7 @@ object Program:
   def build: Program = 
     Program(Map())
       .append(
-        not(A) := call(A) && cut && false,
+        not(A) := A && cut && false,
         not(A)
       )
 
@@ -122,5 +123,6 @@ def query(goals: Goal*): Query = Query(goals.toList)
 import scala.language.implicitConversions
 implicit def fromInt(a: Int): Term = atom(a)
 implicit def fromString(a: String): Term = atom(a)
-implicit def fromBool(a: Boolean): Predicate = pFalse
+implicit def fromBool(a: Boolean): Predicate = if a then Predicate("true") else Predicate("False")
 implicit def fromPredicate(p: Predicate): Clause = Clause(p)
+implicit def fromVariable(v: Variable): Predicate = call(v)

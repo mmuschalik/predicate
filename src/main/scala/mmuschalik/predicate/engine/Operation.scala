@@ -1,6 +1,6 @@
-package mmuschalik.Operation
+package mmuschalik.predicate.engine
 
-import mmuschalik.ADT._
+import mmuschalik.predicate._
 
 def unify(x: Term, y: Term): Option[Set[Binding]] =
   unify(List((x, y)), Set())
@@ -11,12 +11,14 @@ def unify(stack: List[(Term, Term)], bindings: Set[Binding]): Option[Set[Binding
     .fold(Some(bindings))(pop => 
       pop match
         case (x: Atom[_], y) if x == y => unify(stack.tail, bindings)
-        case (x: Variable, y) if !y.contains(x) => unify(substitute(stack.tail, Binding(y, x)), merge(bindings, Binding(y, x)))
+        case (x: Variable, y) if !y.contains(x) => 
+          unify(substitute(stack.tail, Binding(y, x)), merge(bindings, Binding(y, x)))
         case (x: Variable, y) if x == y => unify(stack.tail, bindings)
         case (x: Atom[_], y: Variable) => unify((y,x) :: stack.tail, bindings)
         case (x: Predicate, y: Variable) => unify((y,x) :: stack.tail, bindings)
         case (l: Predicate, r: Predicate) 
-          if l.name == r.name && l.list.size == r.list.size => unify((l.list zip r.list) ++ stack.tail, bindings)
+          if l.name == r.name && l.list.size == r.list.size => 
+            unify((l.list zip r.list) ++ stack.tail, bindings)
         case _ => None)
 
 def substitute(stack: List[(Term, Term)], binding: Binding): List[(Term, Term)] = 

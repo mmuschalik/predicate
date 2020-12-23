@@ -1,4 +1,6 @@
-import mmuschalik.ADT._
+package mmuschalik.test
+
+import mmuschalik.predicate._
 
 def f(terms: Term*) = predicate("f", terms :_*)
 def g(terms: Term*) = predicate("g", terms :_*)
