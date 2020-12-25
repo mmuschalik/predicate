@@ -1,7 +1,7 @@
 package mmuschalik.predicate.engine
 
-import zio._
 import mmuschalik.predicate._
+import zio._
 import zio.duration._
 import zio.stream._
 
@@ -16,7 +16,8 @@ def solve(query: Query)(using Program): ZIO[Any, Nothing, ZStream[Any, Nothing, 
     stream      = Stream.fromQueue(queue)
     remainder  <- {
                     for 
-                      _   <- solve(query, Set(), 1, queue) 
+                      _   <- solve(query, Set(), 1, queue)
+                                .onError(_ => queue.shutdown)
                       rem <- queue.takeAll
                       _   <- queue.shutdown
                     yield rem
@@ -58,6 +59,10 @@ def solve(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Bin
           c match
             case p: Predicate => solve(Query(p :: query.goals.tail), bindings, depth, queue)
             case _ => ZIO.succeed(Done)
+        case Predicate("is", (v: Variable) :: (t: Term) :: Nil) =>
+          evalNumeric(t)
+            .map(m => solve(Query(substitutePredicate(query.goals.tail, Set(Binding(atom(m), v)))), bindings + Binding(atom(m), v), depth + 1, queue))
+            .getOrElse(ZIO.die(Exception("Evaluation didn't return a number")))
         case _ => 
           evalWithBreak(
             LazyList(summon[Program].get(goal) :_*)

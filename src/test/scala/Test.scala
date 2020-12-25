@@ -15,6 +15,7 @@ object TestProlog extends DefaultRunnableSpec {
 
   def spec = suite("Test All")(
     opTests,
+    algebraTests,
     solveTests
   )
 
@@ -46,7 +47,20 @@ object TestProlog extends DefaultRunnableSpec {
     }
   )
 
+  val algebraTests = suite("Test simple algebra")(
+    testProgram("addition")(
+      Program.build,
+      (A is 1) && (B is 1) && (Z is (A + B)), 
+        Set(1 /A, 1 /B, 2 /Z)
+    )
+  )
+
   val solveTests = suite("Test solving goals")(
+    testProgram("simple equal (unify)")(
+      Program.build,
+      A =* 0, 
+        Set(0 /A)
+    ),
     testProgram("ensure all basic facts are solutions")(
       foodProgram,
       food(A), 

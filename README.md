@@ -1,6 +1,6 @@
 ## Welcome to predicate
 
-This project is inspired by the logic programming language prolog. It's main objective is to bring the same problem solving capabilities prolog has to the JVM, using a execution strategy called chronological backtracking.
+This project is inspired by the logic programming language prolog. It's main objective is to bring the same problem solving capabilities prolog has to the JVM, using a execution strategy called chronological backtracking. 
 
 ### Usage
 

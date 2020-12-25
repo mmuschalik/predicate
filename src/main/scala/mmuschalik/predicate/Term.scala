@@ -16,6 +16,16 @@ sealed trait Term:
 
   def rename(newVersion: Int): This
 
+  def =*(other: Term): Predicate = eql(this, other)
+
+  def +(other: Term): Predicate = plus(this, other)
+
+  def -(other: Term): Predicate = minus(this, other)
+
+  def *(other: Term): Predicate = multiply(this, other)
+
+  def /(other: Term): Predicate = divide(this, other)
+
 case class Atom[T](a: T) extends Term:
 
   type This = Atom[T]
@@ -54,6 +64,8 @@ case class Variable(name: String, version: Int) extends Term:
       Variable("_" + name, newVersion) 
     else 
       this
+  
+  infix def is(other: Term): Predicate = predicate("is", this, other)
 
 case class Predicate(name: String, list: List[Term] = Nil) extends Term:
 
