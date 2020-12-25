@@ -10,7 +10,7 @@ trait Result
 case object Done extends Result
 case class Cut(query: Query, bindings: Set[Binding], depth: Int) extends Result
 
-def solve(query: Query)(using Program): ZIO[Any, Nothing, ZStream[Any, Nothing, Set[Binding]]] =
+def solve(query: Query)(using Program): ZIO[Any, Nothing, ZStream[Any, SolveError, Set[Binding]]] =
   for
     queue      <- Queue.bounded[Set[Binding]](1)
     stream      = Stream.fromQueue(queue)
@@ -26,7 +26,7 @@ def solve(query: Query)(using Program): ZIO[Any, Nothing, ZStream[Any, Nothing, 
     Stream.fromEffect(remainder.join)
       .flatMap(f => Stream(f :_ *))
 
-def evalWithBreak[A](list: LazyList[ZIO[Any, Nothing, A]], condition: A => Boolean): ZIO[Any, Nothing, Option[A]] =
+def evalWithBreak[A, E](list: LazyList[ZIO[Any, E, A]], condition: A => Boolean): ZIO[Any, E, Option[A]] =
   list
     .headOption
     .fold(ZIO.succeed(None))
@@ -42,7 +42,10 @@ def isCut(res: Result): Boolean =
     case c: Cut => true
     case _ => false
 
-def solve(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Binding]])(using Program): ZIO[Any, Nothing, Result] =
+trait SolveError
+case class ExpectingNumber(t: Term) extends SolveError
+
+def solve(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Binding]])(using Program): ZIO[Any, SolveError, Result] =
   query.goals
     .headOption
     .fold(
@@ -60,9 +63,13 @@ def solve(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Bin
             case p: Predicate => solve(Query(p :: query.goals.tail), bindings, depth, queue)
             case _ => ZIO.succeed(Done)
         case Predicate("is", (v: Variable) :: (t: Term) :: Nil) =>
-          evalNumeric(t)
-            .map(m => solve(Query(substitutePredicate(query.goals.tail, Set(Binding(atom(m), v)))), bindings + Binding(atom(m), v), depth + 1, queue))
-            .getOrElse(ZIO.die(Exception("Evaluation didn't return a number")))
+          ZIO.fromEither(evalNumeric(t))
+            .flatMap(m => 
+              solve(
+                Query(substitutePredicate(query.goals.tail, Set(Binding(atom(m), v)))), 
+                bindings + Binding(atom(m), v), 
+                depth + 1, 
+                queue))
         case _ => 
           evalWithBreak(
             LazyList(summon[Program].get(goal) :_*)
