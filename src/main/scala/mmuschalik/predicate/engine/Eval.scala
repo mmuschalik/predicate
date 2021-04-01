@@ -1,7 +1,7 @@
 package mmuschalik.predicate.engine
 
-import mmuschalik.predicate._
-import zio._
+import mmuschalik.predicate.*
+import zio.*
 
 def evalNumeric(term: Term): Either[SolveError, BigDecimal] = 
   term match

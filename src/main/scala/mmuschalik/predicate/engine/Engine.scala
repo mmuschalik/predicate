@@ -1,9 +1,9 @@
 package mmuschalik.predicate.engine
 
-import mmuschalik.predicate._
-import zio._
-import zio.duration._
-import zio.stream._
+import mmuschalik.predicate.*
+import zio.*
+import zio.duration.*
+import zio.stream.*
 
 
 trait Result

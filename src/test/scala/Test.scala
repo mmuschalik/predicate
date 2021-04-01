@@ -1,14 +1,14 @@
 package mmuschalik.test
 
-import zio.console._
-import zio.stream._
-import zio.test._
+import zio.console.*
+import zio.stream.*
+import zio.test.*
 import zio.test.Assertion.{equalTo}
-import zio.test.environment._
-import mmuschalik.predicate._
-import mmuschalik.predicate.engine._
-import mmuschalik.test.foodtest._
-import mmuschalik.test.happytest._
+import zio.test.environment.*
+import mmuschalik.predicate.*
+import mmuschalik.predicate.engine.*
+import mmuschalik.test.foodtest.*
+import mmuschalik.test.happytest.*
 
 
 object TestProlog extends DefaultRunnableSpec {
