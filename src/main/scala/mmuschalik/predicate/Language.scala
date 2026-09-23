@@ -17,16 +17,55 @@ case class Clause(head: Goal, body: List[Goal] = Nil):
   def rename(newVersion: Int): Clause = 
     Clause(head.rename(newVersion), body.map(g => g.rename(newVersion)))
 
-case class Binding(term: Term, variable: Variable):
+// one solution: the values of the query's variables that were bound
+final class Answer(val bindings: Map[Variable, Term]):
+
+  def apply(variable: Variable): Term = 
+    bindings(variable)
+
+  def get(variable: Variable): Option[Term] = 
+    bindings.get(variable)
+
+  def as[T](variable: Variable)(using decoder: Decoder[T]): Either[DecodeError, T] = 
+    get(variable)
+      .toRight(DecodeError(variable.show + " is unbound"))
+      .flatMap(decoder.decode)
 
   def show: String = 
-    term.show + " /" + variable.show
+    bindings
+      .toList
+      .sortBy(_._1.name)
+      .map((v, t) => v.show + " = " + t.show)
+      .mkString(", ")
 
-case class Program(program: Map[String, List[Clause]]):
+  override def equals(other: Any): Boolean = 
+    other match
+      case a: Answer => bindings == a.bindings
+      case _ => false
+
+  override def hashCode: Int = 
+    bindings.hashCode
+
+  override def toString: String = 
+    "Answer(" + show + ")"
+
+object Answer:
+
+  // a single non-overloaded apply, so A -> 1 converts the value to a Term
+  def apply(bindings: (Variable, Term)*): Answer = 
+    new Answer(bindings.toMap)
+
+// declares a predicate by name: val woman = Functor("woman"); woman(jean)
+case class Functor(name: String):
+
+  def apply(args: Term*): Predicate = 
+    Predicate(name, args.toList)
+
+case class Program(program: Map[(String, Int), List[Clause]]):
 
   def get(goal: Goal): List[Clause] = 
     program
-      .getOrElse(goal.name + goal.list.size.toString, Nil)
+      .getOrElse(goal.key, Nil)
 
   def append[T](facts: List[T])(using BuildPredicate[T]): Program = 
     appendFacts(facts.map(summon[BuildPredicate[T]].build)*)

@@ -14,15 +14,16 @@ private case class CutTo(barrier: Int) extends Step
 
 private type Steps = ZStream[Any, Raised, Step]
 
-def solve(query: Query)(using Program): ZStream[Any, SolveError, Set[Binding]] =
+def solve(query: Query)(using Program): ZStream[Any, SolveError, Answer] =
   val queryVariables = query.goals.flatMap(variables).distinct
   solve(bindCuts(query.goals, 0), Map(), 1)
     .mapError(raised => Errors.toSolveError(raised.ball))
     .collect { case Solution(s, _) =>
-      queryVariables
-        .map(v => Binding(resolve(v, s), v))
-        .filter(b => b.term != b.variable)
-        .toSet
+      new Answer(
+        queryVariables
+          .map(v => v -> resolve(v, s))
+          .filter((v, t) => t != v)
+          .toMap)
     }
 
 private def bindCuts(goals: List[Goal], barrier: Int): List[Goal] =

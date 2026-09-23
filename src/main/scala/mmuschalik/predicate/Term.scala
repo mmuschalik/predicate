@@ -2,19 +2,10 @@ package mmuschalik.predicate
 
 sealed trait Term:
 
-  type This >: this.type <: Term
-  type Substitution >: this.type <: Term
-
-  def /(variable: Variable): Binding = 
-    Binding(this, variable)
-
   def show: String
 
-  def substitute(binding: Binding): Substitution
-
-  def contains(variable: Variable): Boolean
-
-  def rename(newVersion: Int): This
+  // gives the clause variables a fresh version so each use of a clause is independent
+  def rename(newVersion: Int): Term
 
   def =*(other: Term): Predicate = eql(this, other)
 
@@ -55,34 +46,17 @@ sealed trait Term:
 
 case class Atom(name: String) extends Term:
 
-  type This = Atom
-  type Substitution = This
-
   def show: String = name
 
-  def substitute(binding: Binding): Substitution = this
-
-  def contains(variable: Variable): Boolean = false
-
-  def rename(newVersion: Int): This = this
+  def rename(newVersion: Int): Atom = this
 
 case class Num(value: BigDecimal) extends Term:
 
-  type This = Num
-  type Substitution = This
-
   def show: String = value.toString
 
-  def substitute(binding: Binding): Substitution = this
-
-  def contains(variable: Variable): Boolean = false
-
-  def rename(newVersion: Int): This = this
+  def rename(newVersion: Int): Num = this
 
 case class Variable(name: String, version: Int) extends Term:
-
-  type This = Variable
-  type Substitution = Term
 
   def show: String = 
     if version == 0 then 
@@ -90,16 +64,7 @@ case class Variable(name: String, version: Int) extends Term:
     else 
       name + version.toString
 
-  def substitute(binding: Binding): Substitution = 
-    if binding.variable == this then 
-      binding.term 
-    else 
-      this
-
-  def contains(variable: Variable): Boolean = 
-    this == variable
-
-  def rename(newVersion: Int): This = 
+  def rename(newVersion: Int): Variable = 
     if version == 0 then 
       Variable("_" + name, newVersion) 
     else 
@@ -109,11 +74,8 @@ case class Variable(name: String, version: Int) extends Term:
 
 case class Predicate(name: String, list: List[Term] = Nil) extends Term:
 
-  type This = Predicate
-  type Substitution = Predicate
-
-  def key: String = 
-    name + list.size.toString
+  def key: (String, Int) = 
+    (name, list.size)
 
   def show: String = 
     this match
@@ -123,6 +85,8 @@ case class Predicate(name: String, list: List[Term] = Nil) extends Term:
           case Atom("[]") => ""
           case t => "|" + t.show
         "[" + items.map(_.show).mkString(", ") + end + "]"
+      case Predicate(name, Nil) =>
+        name
       case _ =>
         name + "(" + list.map(_.show).mkString(", ") + ")"
 
@@ -135,17 +99,18 @@ case class Predicate(name: String, list: List[Term] = Nil) extends Term:
         case end => (acc.reverse, end)
     loop(this, Nil)
 
-  def contains(variable: Variable): Boolean = 
-    list.exists(_.contains(variable))
-
-  def substitute(binding: Binding): Substitution = 
-    Predicate(name, list.map(m => m.substitute(binding)))
-
-  def substitute(binding: Set[Binding]): Predicate = 
-    binding.foldLeft(this)((a, b) => a.substitute(b))
-
-  def rename(newVersion: Int): This = 
-    Predicate(name, list.map(m => m.rename(newVersion)))
+  def rename(newVersion: Int): Predicate = 
+    this match
+      case Predicate(".", _ :: _ :: Nil) =>
+        // loop along list cells so long lists in clauses don't overflow the stack
+        val (items, tail) = spine
+        val renamedTail = tail.rename(newVersion)
+        items
+          .map(_.rename(newVersion))
+          .foldRight(renamedTail)((head, rest) => Predicate(".", List(head, rest)))
+          .asInstanceOf[Predicate]
+      case _ =>
+        Predicate(name, list.map(_.rename(newVersion)))
 
   def &&(right: Predicate): Predicate = 
     Predicate(",", List(this, right))

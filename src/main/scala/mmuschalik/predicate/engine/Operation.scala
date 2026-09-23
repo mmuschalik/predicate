@@ -83,8 +83,9 @@ private def sameConstant(a: Term, b: Term): Boolean =
     case (Predicate(m, Nil), Atom(n)) => n == m
     case _ => false
 
-def unify(x: Term, y: Term): Option[Set[Binding]] =
-  unify(x, y, Map()).map(s => s.keySet.map(v => Binding(resolve(v, s), v)))
+// the most general unifier of two terms, fully resolved
+def unify(x: Term, y: Term): Option[Answer] =
+  unify(x, y, Map()).map(s => new Answer(s.keySet.map(v => v -> resolve(v, s)).toMap))
 
 // the distinct variables of a term, in order of first appearance
 def variables(term: Term): List[Variable] =
