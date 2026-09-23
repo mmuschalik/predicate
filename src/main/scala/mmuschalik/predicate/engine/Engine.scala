@@ -8,7 +8,7 @@ sealed trait SolveError
 case class ExpectingNumber(t: Term) extends SolveError
 
 // a cut is tagged with the level (barrier) whose alternatives it prunes
-private case class Barrier(id: Int)
+private val taggedCut = "$cut"
 
 private sealed trait Step
 private case class Solution(s: Subst) extends Step
@@ -28,7 +28,7 @@ def solve(query: Query)(using Program): ZStream[Any, SolveError, Set[Binding]] =
 
 private def bindCuts(goals: List[Goal], barrier: Int): List[Goal] =
   goals.map {
-    case Predicate("cut", Nil) => Predicate("cut", List(Atom(Barrier(barrier))))
+    case Predicate("cut", Nil) => Predicate(taggedCut, List(num(barrier)))
     case goal => goal
   }
 
@@ -37,8 +37,8 @@ private def solve(goals: List[Goal], s: Subst, depth: Int)(using program: Progra
     case Nil => ZStream.succeed(Solution(s))
     case goal :: rest =>
       goal match
-        case Predicate("cut", Atom(Barrier(barrier)) :: Nil) =>
-          ZStream.succeed(CutTo(barrier)) ++ solve(rest, s, depth)
+        case Predicate(`taggedCut`, Num(barrier) :: Nil) =>
+          ZStream.succeed(CutTo(barrier.toInt)) ++ solve(rest, s, depth)
         case Predicate("call", c :: Nil) =>
           // call is opaque to cut: a cut inside the called goal only prunes the call itself
           walk(c, s) match
@@ -46,7 +46,7 @@ private def solve(goals: List[Goal], s: Subst, depth: Int)(using program: Progra
             case _ => ZStream.empty
         case Predicate("is", l :: r :: Nil) =>
           ZStream.fromZIO(ZIO.fromEither(evalNumeric(resolve(r, s))))
-            .flatMap(n => unify(l, atom(n), s).fold(ZStream.empty)(solve(rest, _, depth)))
+            .flatMap(n => unify(l, num(n), s).fold(ZStream.empty)(solve(rest, _, depth)))
         case _ =>
           alternatives(depth, program.get(goal).map { clause => () =>
             val renamed = clause.rename(depth)

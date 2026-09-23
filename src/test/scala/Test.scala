@@ -48,6 +48,12 @@ object TestProlog extends ZIOSpecDefault {
       val x2 = Variable("_X", 2)
       assert(unify(x1, f(x2)))(equalTo(Some(Set(f(x2) /x1))))
     },
+    test("numbers unify by value regardless of Scala type") {
+      assert(unify(f(2), f(2.0)))(equalTo(Some(Set())))
+    },
+    test("an atom never unifies with a number") {
+      assert(unify(f("1"), f(1)))(equalTo(None))
+    },
     test("occurs check rejects cyclic terms") {
       assert(unify(X, f(X)))(equalTo(None))
     }

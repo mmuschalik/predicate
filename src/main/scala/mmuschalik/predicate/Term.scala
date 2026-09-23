@@ -26,12 +26,25 @@ sealed trait Term:
 
   def /(other: Term): Predicate = divide(this, other)
 
-case class Atom[T](a: T) extends Term:
+case class Atom(name: String) extends Term:
 
-  type This = Atom[T]
+  type This = Atom
   type Substitution = This
 
-  def show: String = a.toString
+  def show: String = name
+
+  def substitute(binding: Binding): Substitution = this
+
+  def contains(variable: Variable): Boolean = false
+
+  def rename(newVersion: Int): This = this
+
+case class Num(value: BigDecimal) extends Term:
+
+  type This = Num
+  type Substitution = This
+
+  def show: String = value.toString
 
   def substitute(binding: Binding): Substitution = this
 

@@ -7,7 +7,9 @@ val X = variable("X")
 val Y = variable("Y")
 val Z = variable("Z")
 
-def atom[T](t: T): Atom[T] = Atom(t)
+def atom(name: String): Atom = Atom(name)
+
+def num(value: BigDecimal): Num = Num(value)
 
 def variable(name: String): Variable = 
   Variable(name, 0)
