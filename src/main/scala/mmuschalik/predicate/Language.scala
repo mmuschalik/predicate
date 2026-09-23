@@ -29,12 +29,7 @@ case class Program(program: Map[String, List[Clause]]):
       .getOrElse(goal.name + goal.list.size.toString, Nil)
 
   def append[T](facts: List[T])(using BuildPredicate[T]): Program = 
-    Program(
-      this.program ++
-      facts
-        .map(summon[BuildPredicate[T]].build)
-        .groupBy(k => k.key)
-        .map(g => g._1 -> (g._2.map(x => Clause(x)))).toMap)
+    appendFacts(facts.map(summon[BuildPredicate[T]].build)*)
 
   def append(clauses: Clause*): Program = 
     clauses.foldLeft(this)((p, clause) => 
