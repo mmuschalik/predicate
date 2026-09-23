@@ -2,7 +2,6 @@ package mmuschalik.predicate.engine
 
 import mmuschalik.predicate.*
 import zio.*
-import zio.duration.*
 import zio.stream.*
 
 
@@ -10,10 +9,10 @@ trait Result
 case object Done extends Result
 case class Cut(query: Query, bindings: Set[Binding], depth: Int) extends Result
 
-def solve(query: Query)(using Program): ZIO[Any, Nothing, ZStream[Any, SolveError, Set[Binding]]] =
+def solve(query: Query)(using Program): UIO[ZStream[Any, SolveError, Set[Binding]]] =
   for
     queue      <- Queue.bounded[Set[Binding]](1)
-    stream      = Stream.fromQueue(queue)
+    stream      = ZStream.fromQueue(queue)
     remainder  <- {
                     for 
                       _   <- solve(query, Set(), 1, queue)
@@ -23,8 +22,8 @@ def solve(query: Query)(using Program): ZIO[Any, Nothing, ZStream[Any, SolveErro
                     yield rem
                   }.fork
   yield stream ++ 
-    Stream.fromEffect(remainder.join)
-      .flatMap(f => Stream(f :_ *))
+    ZStream.fromZIO(remainder.join)
+      .flatMap(ZStream.fromChunk(_))
 
 def evalWithBreak[A, E](list: LazyList[ZIO[Any, E, A]], condition: A => Boolean): ZIO[Any, E, Option[A]] =
   list
@@ -72,7 +71,7 @@ def solve(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Bin
                 queue))
         case _ => 
           evalWithBreak(
-            LazyList(summon[Program].get(goal) :_*)
+            LazyList.from(summon[Program].get(goal))
               .map { clause => 
 
                 val substitutedClause = clause.rename(depth)

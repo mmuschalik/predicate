@@ -1,17 +1,14 @@
 package mmuschalik.test
 
-import zio.console.*
-import zio.stream.*
 import zio.test.*
-import zio.test.Assertion.{equalTo}
-import zio.test.environment.*
+import zio.test.Assertion.equalTo
 import mmuschalik.predicate.*
 import mmuschalik.predicate.engine.*
 import mmuschalik.test.foodtest.*
 import mmuschalik.test.happytest.*
 
 
-object TestProlog extends DefaultRunnableSpec {
+object TestProlog extends ZIOSpecDefault {
 
   def spec = suite("Test All")(
     opTests,
@@ -107,14 +104,14 @@ object TestProlog extends DefaultRunnableSpec {
     )
   )
 
-  def testProgram(msg: String)(program: Program, query: Goal, set: Set[Binding]*) = testM(msg) {
+  def testProgram(msg: String)(program: Program, query: Goal, set: Set[Binding]*) = test(msg) {
     program
       .solve(query)
       .flatMap(_.runCollect)
       .map(s => assert(s.toSet)(equalTo(set.toSet)))
   }
 
-  def testProgram(msg: String)(program: Program, query: Query, set: Set[Binding]*) = testM(msg) {
+  def testProgram(msg: String)(program: Program, query: Query, set: Set[Binding]*) = test(msg) {
     program
       .solve(query)
       .flatMap(_.runCollect)

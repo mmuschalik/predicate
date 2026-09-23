@@ -42,7 +42,7 @@ case class Program(program: Map[String, List[Clause]]):
         (clause.head.key -> (p.get(clause.head) ++ List(clause)))))
 
   def appendFacts(facts: Predicate*): Program = 
-    append(facts.map(m => Clause(m)) :_*)
+    append(facts.map(m => Clause(m))*)
 
   def solve(query: Query) = 
     engine.solve(query)(using this)
