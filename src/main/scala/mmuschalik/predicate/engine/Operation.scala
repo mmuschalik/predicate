@@ -25,7 +25,7 @@ def substitute(stack: List[(Term, Term)], binding: Binding): List[(Term, Term)] 
   stack.map(m => (m._1.substitute(binding), m._2.substitute(binding)))
 
 def merge(set: Set[Binding], binding: Binding): Set[Binding] = 
-  set.map(s => if s.term == binding.variable then Binding(binding.term, s.variable) else s) + binding
+  set.map(s => Binding(s.term.substitute(binding), s.variable)) + binding
 
 def merge(left: Set[Binding], right: Set[Binding]): Set[Binding] =
   right.foldLeft(left)(merge(_, _))
