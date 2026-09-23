@@ -79,12 +79,7 @@ case class Predicate(name: String, list: List[Term] = Nil) extends Term:
     name + "(" + list.map(_.show).mkString(", ") + ")"
 
   def contains(variable: Variable): Boolean = 
-    list.find(
-      _ match
-        case term: Variable => term.name == variable.name
-        case term: Predicate => term.contains(variable)
-        case _ => false
-    ).isDefined
+    list.exists(_.contains(variable))
 
   def substitute(binding: Binding): Substitution = 
     Predicate(name, list.map(m => m.substitute(binding)))
