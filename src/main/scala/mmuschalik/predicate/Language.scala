@@ -54,6 +54,7 @@ object Program:
         not(A) := A && cut && false,
         not(A)
       )
+      .append(Library.lists*)
 
 trait BuildPredicate[T]:
 

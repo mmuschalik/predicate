@@ -53,6 +53,34 @@ private[engine] object Builtins:
             case other =>
               ZStream.fail(Raised(Errors.typeError("integer", other), depth)))
 
+  // walks a list to its end, counting cells; the end is nil for a proper list or an unbound variable for a partial one
+  @annotation.tailrec
+  private def spine(t: Term, s: Subst, count: Int = 0): (Int, Term) =
+    walk(t, s) match
+      case Predicate(".", _ :: tail :: Nil) => spine(tail, s, count + 1)
+      case end => (count, end)
+
+  private def freshList(size: Int, depth: Int): Term =
+    list((0 until size).map(i => Variable("_E" + i, depth))*)
+
+  private val length: Builtin =
+    (args, s, depth) =>
+      val (count, end) = spine(args(0), s)
+      (end, walk(args(1), s)) match
+        case (Atom("[]"), n) =>
+          unify(n, Num(count), s).fold(ZStream.empty)(ZStream.succeed(_))
+        case (tail: Variable, Num(n)) if n.isWhole =>
+          if n < count then ZStream.empty
+          else unify(tail, freshList(n.toInt - count, depth), s).fold(ZStream.empty)(ZStream.succeed(_))
+        case (tail: Variable, n: Variable) =>
+          ZStream.iterate(0)(_ + 1).map { extra =>
+            unify(tail, freshList(extra, depth), s).flatMap(unify(n, Num(count + extra), _))
+          }.collectSome
+        case (_: Variable, other) =>
+          ZStream.fail(Raised(Errors.typeError("integer", other), depth))
+        case _ =>
+          ZStream.empty
+
   val all: Map[(String, Int), Builtin] = Map(
     ("true", 0) -> test((_, _) => true),
     ("false", 0) -> test((_, _) => false),
@@ -60,8 +88,8 @@ private[engine] object Builtins:
 
     ("=", 2) -> det((args, s) => Right(unify(args(0), args(1), s))),
     ("\\=", 2) -> test((args, s) => unify(args(0), args(1), s).isEmpty),
-    ("==", 2) -> test((args, s) => resolve(args(0), s) == resolve(args(1), s)),
-    ("\\==", 2) -> test((args, s) => resolve(args(0), s) != resolve(args(1), s)),
+    ("==", 2) -> test((args, s) => identical(args(0), args(1), s)),
+    ("\\==", 2) -> test((args, s) => !identical(args(0), args(1), s)),
 
     ("is", 2) -> det((args, s) => evalNumeric(resolve(args(1), s)).map(n => unify(args(0), Num(n), s))),
     ("<", 2) -> compare(_ < _),
@@ -71,6 +99,7 @@ private[engine] object Builtins:
     ("=:=", 2) -> compare(_ == _),
     ("=\\=", 2) -> compare(_ != _),
     ("between", 3) -> between,
+    ("length", 2) -> length,
 
     ("var", 1) -> typeCheck(_.isInstanceOf[Variable]),
     ("nonvar", 1) -> typeCheck(!_.isInstanceOf[Variable]),

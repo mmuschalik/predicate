@@ -50,6 +50,9 @@ sealed trait Term:
 
   def =\=(other: Term): Predicate = predicate("=\\=", this, other)
 
+  // list cell, right associative: H :: T
+  def ::(head: Term): Predicate = cons(head, this)
+
 case class Atom(name: String) extends Term:
 
   type This = Atom
@@ -113,7 +116,24 @@ case class Predicate(name: String, list: List[Term] = Nil) extends Term:
     name + list.size.toString
 
   def show: String = 
-    name + "(" + list.map(_.show).mkString(", ") + ")"
+    this match
+      case Predicate(".", _ :: _ :: Nil) =>
+        val (items, tail) = spine
+        val end = tail match
+          case Atom("[]") => ""
+          case t => "|" + t.show
+        "[" + items.map(_.show).mkString(", ") + end + "]"
+      case _ =>
+        name + "(" + list.map(_.show).mkString(", ") + ")"
+
+  // the elements of a list cell chain and whatever ends it (nil for a proper list)
+  private def spine: (List[Term], Term) =
+    @annotation.tailrec
+    def loop(t: Term, acc: List[Term]): (List[Term], Term) =
+      t match
+        case Predicate(".", head :: tail :: Nil) => loop(tail, head :: acc)
+        case end => (acc.reverse, end)
+    loop(this, Nil)
 
   def contains(variable: Variable): Boolean = 
     list.exists(_.contains(variable))

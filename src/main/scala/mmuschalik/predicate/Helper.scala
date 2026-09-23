@@ -63,3 +63,25 @@ def isAtom(t: Term) = predicate("atom", t)
 def isNumber(t: Term) = predicate("number", t)
 
 def isCompound(t: Term) = predicate("compound", t)
+
+val nil = atom("[]")
+
+def cons(head: Term, tail: Term) = predicate(".", head, tail)
+
+def list(items: Term*): Term = items.foldRight(nil: Term)(cons)
+
+def append(l: Term, r: Term, joined: Term) = predicate("append", l, r, joined)
+
+def member(item: Term, l: Term) = predicate("member", item, l)
+
+def reverse(l: Term, reversed: Term) = predicate("reverse", l, reversed)
+
+def length(l: Term, n: Term) = predicate("length", l, n)
+
+def nth0(index: Term, l: Term, item: Term) = predicate("nth0", index, l, item)
+
+def nth1(index: Term, l: Term, item: Term) = predicate("nth1", index, l, item)
+
+def last(l: Term, item: Term) = predicate("last", l, item)
+
+def sumList(l: Term, sum: Term) = predicate("sum_list", l, sum)

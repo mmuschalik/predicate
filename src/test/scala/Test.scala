@@ -16,7 +16,8 @@ object TestProlog extends ZIOSpecDefault {
     solveTests,
     cutTests,
     streamTests,
-    builtinTests
+    builtinTests,
+    listTests
   )
 
   val opTests = suite("Test Term Operations")(
@@ -329,6 +330,86 @@ object TestProlog extends ZIOSpecDefault {
     testError("between needs bound limits")(
       between(1, A, 2),
       InstantiationError
+    )
+  )
+
+  val listTests = suite("Test lists")(
+    test("lists display in Prolog notation") {
+      assert((list(1, 2).show, (X :: Y).show, list().show))(equalTo(("[1, 2]", "[X|Y]", "[]")))
+    },
+    testProgram("destructure a list")(
+      Program.build,
+      list(1, 2, 3) =* (X :: Y),
+        Set(1 /X, list(2, 3) /Y)
+    ),
+    testProgram("append two lists")(
+      Program.build,
+      append(list(1, 2), list(3), A),
+        Set(list(1, 2, 3) /A)
+    ),
+    testProgram("append splits a list every way")(
+      Program.build,
+      append(A, B, list(1, 2)),
+        Set(nil /A, list(1, 2) /B),
+        Set(list(1) /A, list(2) /B),
+        Set(list(1, 2) /A, nil /B)
+    ),
+    testProgram("member enumerates elements")(
+      Program.build,
+      member(A, list("a", "b", "c")),
+        Set(atom("a") /A),
+        Set(atom("b") /A),
+        Set(atom("c") /A)
+    ),
+    testProgram("member checks an element")(
+      Program.build,
+      member("b", list("a", "b", "c")),
+        Set()
+    ),
+    testProgram("reverse")(
+      Program.build,
+      reverse(list(1, 2, 3), A),
+        Set(list(3, 2, 1) /A)
+    ),
+    testProgram("nth0, nth1 and last")(
+      Program.build,
+      nth0(1, list("a", "b", "c"), A) && nth1(1, list("a", "b", "c"), B) && nth0(C, list("a", "b"), "b") && last(list(1, 2, 3), X),
+        Set(atom("b") /A, atom("a") /B, 1 /C, 3 /X)
+    ),
+    testProgram("sum of a list")(
+      Program.build,
+      sumList(list(1, 2, 3), A),
+        Set(6 /A)
+    ),
+    testProgram("length of a list")(
+      Program.build,
+      length(list("a", "b"), A),
+        Set(2 /A)
+    ),
+    testProgram("length builds a list of fresh variables")(
+      Program.build,
+      length(A, 2) && (A =* list(1, 2)),
+        Set(list(1, 2) /A)
+    ),
+    test("length enumerates lists when both sides are unbound") {
+      Program.build
+        .solve(length(A, B))
+        .map(_.find(_.variable == B).map(_.term))
+        .take(3)
+        .runCollect
+        .map(r => assert(r.toList)(equalTo(List(Some(num(0)), Some(num(1)), Some(num(2))))))
+    },
+    test("long lists in answers") {
+      Program.build
+        .solve(reverse(list((1 to 10000).map(num(_))*), A) && nth1(1, A, B))
+        .map(_.find(_.variable == B).map(_.term))
+        .runCollect
+        .map(r => assert(r.toList)(equalTo(List(Some(num(10000))))))
+    },
+    testProgram("long lists")(
+      Program.build,
+      length(list((1 to 10000).map(num(_))*), A) && sumList(list((1 to 10000).map(num(_))*), B),
+        Set(10000 /A, 50005000 /B)
     )
   )
 
