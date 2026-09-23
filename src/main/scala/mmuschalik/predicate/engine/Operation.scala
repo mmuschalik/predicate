@@ -2,40 +2,39 @@ package mmuschalik.predicate.engine
 
 import mmuschalik.predicate.*
 
+// triangular substitution: a variable may map to a term that contains further bound variables
+type Subst = Map[Variable, Term]
+
+def walk(term: Term, s: Subst): Term =
+  term match
+    case v: Variable => s.get(v).fold(v)(walk(_, s))
+    case t => t
+
+def resolve(term: Term, s: Subst): Term =
+  walk(term, s) match
+    case Predicate(name, list) => Predicate(name, list.map(resolve(_, s)))
+    case t => t
+
+def occurs(variable: Variable, term: Term, s: Subst): Boolean =
+  walk(term, s) match
+    case v: Variable => v == variable
+    case p: Predicate => p.list.exists(occurs(variable, _, s))
+    case _ => false
+
+def unify(x: Term, y: Term, s: Subst): Option[Subst] =
+  (walk(x, s), walk(y, s)) match
+    case (l, r) if l == r => Some(s)
+    case (v: Variable, t) => if occurs(v, t, s) then None else Some(s + (v -> t))
+    case (t, v: Variable) => if occurs(v, t, s) then None else Some(s + (v -> t))
+    case (l: Predicate, r: Predicate) if l.name == r.name && l.list.size == r.list.size =>
+      (l.list zip r.list).foldLeft(Option(s))((acc, pair) => acc.flatMap(unify(pair._1, pair._2, _)))
+    case _ => None
+
 def unify(x: Term, y: Term): Option[Set[Binding]] =
-  unify(List((x, y)), Set())
+  unify(x, y, Map()).map(s => s.keySet.map(v => Binding(resolve(v, s), v)))
 
-def unify(stack: List[(Term, Term)], bindings: Set[Binding]): Option[Set[Binding]] =
-  stack
-    .headOption
-    .fold(Some(bindings))(pop => 
-      pop match
-        case (x: Atom[_], y) if x == y => unify(stack.tail, bindings)
-        case (x: Variable, y) if !y.contains(x) => 
-          unify(substitute(stack.tail, Binding(y, x)), merge(bindings, Binding(y, x)))
-        case (x: Variable, y) if x == y => unify(stack.tail, bindings)
-        case (x: Atom[_], y: Variable) => unify((y,x) :: stack.tail, bindings)
-        case (x: Predicate, y: Variable) => unify((y,x) :: stack.tail, bindings)
-        case (l: Predicate, r: Predicate) 
-          if l.name == r.name && l.list.size == r.list.size => 
-            unify((l.list zip r.list) ++ stack.tail, bindings)
-        case _ => None)
-
-def substitute(stack: List[(Term, Term)], binding: Binding): List[(Term, Term)] = 
-  stack.map(m => (m._1.substitute(binding), m._2.substitute(binding)))
-
-def merge(set: Set[Binding], binding: Binding): Set[Binding] = 
-  set.map(s => Binding(s.term.substitute(binding), s.variable)) + binding
-
-def merge(left: Set[Binding], right: Set[Binding]): Set[Binding] =
-  right.foldLeft(left)(merge(_, _))
-
-def substitute(list: List[(Term, Term)], sub: Set[Binding]): List[(Term, Term)] =
-  substituteTerm(list.map(_._1), sub) zip substituteTerm(list.map(_._2), sub)
-
-def substituteTerm(list: List[Term], sub: Set[Binding]): List[Term] =
-  list.map(m => (sub.foldLeft(m)((a, b) => a.substitute(b))))
-
-def substitutePredicate(list: List[Predicate], sub: Set[Binding]): List[Predicate] =
-  list.map(m => (sub.foldLeft(m)((a, b) => a.substitute(b))))
-  
+def variables(term: Term): List[Variable] =
+  term match
+    case v: Variable => List(v)
+    case p: Predicate => p.list.flatMap(variables)
+    case _ => Nil

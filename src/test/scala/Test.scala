@@ -13,19 +13,17 @@ object TestProlog extends ZIOSpecDefault {
   def spec = suite("Test All")(
     opTests,
     algebraTests,
-    solveTests
+    solveTests,
+    cutTests,
+    streamTests
   )
 
   val opTests = suite("Test Term Operations")(
-    test("merge bindings 1") {
-      val b1 = Set("a" /X)
-      val b2 = Set("b" /Y)
-      assert(merge(b1, b2))(equalTo(b1 ++ b2))
+    test("resolve follows bindings through variables") {
+      assert(resolve(X, Map(X -> Y, Y -> "b")))(equalTo(atom("b")))
     },
-    test("merge bindings 2") {
-      val b1 = Set(Y /X)
-      val b2 = Set("b" /Y)
-      assert(merge(b1, b2))(equalTo(Set("b" /X, "b" /Y)))
+    test("resolve substitutes inside nested terms") {
+      assert(resolve(f(X), Map(X -> g(Y), Y -> "b")))(equalTo(f(g("b"))))
     },
     test("successfull unification") {
       val t1 = f(g(X, h(X, b)), Z)
@@ -41,9 +39,6 @@ object TestProlog extends ZIOSpecDefault {
       val t = f(g(X, h(X, b)), Z)
       val sub = Set(a /X, h(a, b) /Z)
       assert(t.substitute(sub))(equalTo(f(g(a, h(a, b)), h(a, b))))
-    },
-    test("merge substitutes into nested terms") {
-      assert(merge(Set(f(Y) /X), Set("b" /Y)))(equalTo(Set(f("b") /X, "b" /Y)))
     },
     test("unification resolves bindings inside nested terms") {
       assert(unify(f(X, Y), f(g(Y), a)))(equalTo(Some(Set(g(a) /X, a /Y))))
@@ -157,18 +152,97 @@ object TestProlog extends ZIOSpecDefault {
     )
   )
 
-  def testProgram(msg: String)(program: Program, query: Goal, set: Set[Binding]*) = test(msg) {
-    program
-      .solve(query)
-      .flatMap(_.runCollect)
-      .map(s => assert(s.toSet)(equalTo(set.toSet)))
-  }
+  def nat(t: Term) = predicate("nat", t)
+  def s(t: Term) = predicate("s", t)
+  def first(t: Term) = predicate("first", t)
+  def peano(n: Int): Term = (1 to n).foldLeft(atom("z"): Term)((t, _) => s(t))
 
-  def testProgram(msg: String)(program: Program, query: Query, set: Set[Binding]*) = test(msg) {
+  val natProgram =
+    Program.build.append(
+      nat("z"),
+      nat(s(X)) := nat(X)
+    )
+
+  def count(t: Term) = predicate("count", t)
+
+  val countProgram =
+    Program.build.append(
+      count(0) := cut,
+      count(X) := (Y is X - 1) && count(Y)
+    )
+
+  val firstProgram =
+    happyProgram.append(
+      first(X) := woman(X) && cut
+    )
+
+  val cutTests = suite("Test cut")(
+    testProgram("cut inside a clause only prunes that clause's goal")(
+      firstProgram,
+      first(A),
+        Set(jean /A)
+    ),
+    testProgram("cut inside a clause does not prune goals before it")(
+      firstProgram,
+      wealthy(B) && first(A),
+        Set(fred /B, jean /A),
+        Set(pat /B, jean /A)
+    ),
+    testProgram("cut inside a clause does not prune goals after it")(
+      firstProgram,
+      first(A) && wealthy(B),
+        Set(jean /A, fred /B),
+        Set(jean /A, pat /B)
+    ),
+    testProgram("call is opaque to cut")(
+      happyProgram,
+      wealthy(A) && call(cut),
+        Set(fred /A),
+        Set(pat /A)
+    ),
+    testProgram("not of a goal with several solutions")(
+      happyProgram,
+      not(woman(A)),
+    )
+  )
+
+  val streamTests = suite("Test solution stream")(
+    test("infinite search is lazy and can be cut short") {
+      natProgram
+        .solve(nat(A))
+        .take(3)
+        .runCollect
+        .map(r => assert(r.toList)(equalTo(List(
+          Set("z" /A),
+          Set(s("z") /A),
+          Set(s(s("z")) /A)))))
+    },
+    testProgram("deep search with flat terms")(
+      countProgram,
+      count(100000),
+        Set()
+    ),
+    testProgram("deeply nested terms")(
+      natProgram,
+      nat(peano(5000)),
+        Set()
+    ),
+    test("arithmetic on an unbound variable fails the stream") {
+      Program.build
+        .solve(A is (B + 1))
+        .runCollect
+        .either
+        .map(r => assert(r)(equalTo(Left(ExpectingNumber(B)))))
+    }
+  )
+
+  def testProgram(msg: String)(program: Program, query: Goal, set: Set[Binding]*): Spec[Any, SolveError] =
+    testProgram(msg)(program, Query(List(query)), set*)
+
+  def testProgram(msg: String)(program: Program, query: Query, set: Set[Binding]*): Spec[Any, SolveError] = test(msg) {
     program
       .solve(query)
-      .flatMap(_.runCollect)
+      .runCollect
       .map(s => assert(s.toSet)(equalTo(set.toSet)))
   }
 }
-
