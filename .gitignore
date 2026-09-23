@@ -1,4 +1,6 @@
 .idea
 project/target
 target
-.dotty*
+.dotty*.bsp
+.metals
+.bloop

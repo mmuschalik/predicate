@@ -2,19 +2,10 @@ package mmuschalik.predicate
 
 sealed trait Term:
 
-  type This >: this.type <: Term
-  type Substitution >: this.type <: Term
-
-  def /(variable: Variable): Binding = 
-    Binding(this, variable)
-
   def show: String
 
-  def substitute(binding: Binding): Substitution
-
-  def contains(variable: Variable): Boolean
-
-  def rename(newVersion: Int): This
+  // gives the clause variables a fresh version so each use of a clause is independent
+  def rename(newVersion: Int): Term
 
   def =*(other: Term): Predicate = eql(this, other)
 
@@ -26,23 +17,46 @@ sealed trait Term:
 
   def /(other: Term): Predicate = divide(this, other)
 
-case class Atom[T](a: T) extends Term:
+  def %(other: Term): Predicate = mod(this, other)
 
-  type This = Atom[T]
-  type Substitution = This
+  def unary_- : Predicate = predicate("-", this)
 
-  def show: String = a.toString
+  // unification and structural identity
+  def !=*(other: Term): Predicate = predicate("\\=", this, other)
 
-  def substitute(binding: Binding): Substitution = this
+  def ===(other: Term): Predicate = predicate("==", this, other)
 
-  def contains(variable: Variable): Boolean = false
+  def =!=(other: Term): Predicate = predicate("\\==", this, other)
 
-  def rename(newVersion: Int): This = this
+  // arithmetic comparison, both sides are evaluated
+  def <(other: Term): Predicate = predicate("<", this, other)
+
+  def >(other: Term): Predicate = predicate(">", this, other)
+
+  def <=(other: Term): Predicate = predicate("=<", this, other)
+
+  def >=(other: Term): Predicate = predicate(">=", this, other)
+
+  def =:=(other: Term): Predicate = predicate("=:=", this, other)
+
+  def =\=(other: Term): Predicate = predicate("=\\=", this, other)
+
+  // list cell, right associative: H :: T
+  def ::(head: Term): Predicate = cons(head, this)
+
+case class Atom(name: String) extends Term:
+
+  def show: String = name
+
+  def rename(newVersion: Int): Atom = this
+
+case class Num(value: BigDecimal) extends Term:
+
+  def show: String = value.toString
+
+  def rename(newVersion: Int): Num = this
 
 case class Variable(name: String, version: Int) extends Term:
-
-  type This = Variable
-  type Substitution = Term
 
   def show: String = 
     if version == 0 then 
@@ -50,16 +64,7 @@ case class Variable(name: String, version: Int) extends Term:
     else 
       name + version.toString
 
-  def substitute(binding: Binding): Substitution = 
-    if binding.variable == this then 
-      binding.term 
-    else 
-      this
-
-  def contains(variable: Variable): Boolean = 
-    this == variable
-
-  def rename(newVersion: Int): This = 
+  def rename(newVersion: Int): Variable = 
     if version == 0 then 
       Variable("_" + name, newVersion) 
     else 
@@ -69,34 +74,49 @@ case class Variable(name: String, version: Int) extends Term:
 
 case class Predicate(name: String, list: List[Term] = Nil) extends Term:
 
-  type This = Predicate
-  type Substitution = Predicate
-
-  def key: String = 
-    name + list.size.toString
+  def key: (String, Int) = 
+    (name, list.size)
 
   def show: String = 
-    name + "(" + list.map(_.show).mkString(", ") + ")"
+    this match
+      case Predicate(".", _ :: _ :: Nil) =>
+        val (items, tail) = spine
+        val end = tail match
+          case Atom("[]") => ""
+          case t => "|" + t.show
+        "[" + items.map(_.show).mkString(", ") + end + "]"
+      case Predicate(name, Nil) =>
+        name
+      case _ =>
+        name + "(" + list.map(_.show).mkString(", ") + ")"
 
-  def contains(variable: Variable): Boolean = 
-    list.find(
-      _ match
-        case term: Variable => term.name == variable.name
-        case term: Predicate => term.contains(variable)
-        case _ => false
-    ).isDefined
+  // the elements of a list cell chain and whatever ends it (nil for a proper list)
+  private def spine: (List[Term], Term) =
+    @annotation.tailrec
+    def loop(t: Term, acc: List[Term]): (List[Term], Term) =
+      t match
+        case Predicate(".", head :: tail :: Nil) => loop(tail, head :: acc)
+        case end => (acc.reverse, end)
+    loop(this, Nil)
 
-  def substitute(binding: Binding): Substitution = 
-    Predicate(name, list.map(m => m.substitute(binding)))
+  def rename(newVersion: Int): Predicate = 
+    this match
+      case Predicate(".", _ :: _ :: Nil) =>
+        // loop along list cells so long lists in clauses don't overflow the stack
+        val (items, tail) = spine
+        val renamedTail = tail.rename(newVersion)
+        items
+          .map(_.rename(newVersion))
+          .foldRight(renamedTail)((head, rest) => Predicate(".", List(head, rest)))
+          .asInstanceOf[Predicate]
+      case _ =>
+        Predicate(name, list.map(_.rename(newVersion)))
 
-  def substitute(binding: Set[Binding]): Predicate = 
-    binding.foldLeft(this)((a, b) => a.substitute(b))
+  def &&(right: Predicate): Predicate = 
+    Predicate(",", List(this, right))
 
-  def rename(newVersion: Int): This = 
-    Predicate(name, list.map(m => m.rename(newVersion)))
-
-  def &&(right: Predicate) = 
-    Query(List(this,right))
+  def ||(right: Predicate): Predicate = 
+    Predicate(";", List(this, right))
 
   def :=(body: Predicate) = 
     Clause(this, body :: Nil)
