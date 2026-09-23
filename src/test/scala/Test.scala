@@ -17,7 +17,8 @@ object TestProlog extends ZIOSpecDefault {
     cutTests,
     streamTests,
     builtinTests,
-    listTests
+    listTests,
+    controlTests
   )
 
   val opTests = suite("Test Term Operations")(
@@ -410,6 +411,118 @@ object TestProlog extends ZIOSpecDefault {
       Program.build,
       length(list((1 to 10000).map(num(_))*), A) && sumList(list((1 to 10000).map(num(_))*), B),
         Set(10000 /A, 50005000 /B)
+    )
+  )
+
+  def person(t: Term) = predicate("person", t)
+  def firstPerson(t: Term) = predicate("first_person", t)
+  def sign(n: Term, t: Term) = predicate("sign", n, t)
+  def chosen(t: Term) = predicate("chosen", t)
+  def localCut(t: Term) = predicate("local_cut", t)
+
+  val controlProgram =
+    happyProgram.append(
+      person(X) := woman(X) || man(X),
+      firstPerson(X) := (woman(X) && cut) || man(X),
+      sign(X, Y) := ifThenElse(X > 0, Y =* "pos", ifThenElse(X < 0, Y =* "neg", Y =* "zero")),
+      chosen(X) := ifThenElse(true, woman(X) && cut, fail),
+      chosen("other"),
+      localCut(X) := ifThenElse(cut, woman(X), fail),
+      localCut("other")
+    )
+
+  val controlTests = suite("Test control flow")(
+    testProgram("disjunction in a query")(
+      happyProgram,
+      woman(A) || man(A),
+        Set(jean /A),
+        Set(pat /A),
+        Set(fred /A)
+    ),
+    testProgram("disjunction in a clause")(
+      controlProgram,
+      person(A),
+        Set(jean /A),
+        Set(pat /A),
+        Set(fred /A)
+    ),
+    testProgram("a cut in one branch prunes the other branch and the clause")(
+      controlProgram,
+      firstPerson(A),
+        Set(jean /A)
+    ),
+    testProgram("if-then-else takes the first solution of the condition")(
+      happyProgram,
+      ifThenElse(woman(A), B =* "yes", B =* "no"),
+        Set(jean /A, atom("yes") /B)
+    ),
+    testProgram("if-then-else runs the else branch when the condition fails")(
+      happyProgram,
+      ifThenElse(man("jean"), B =* 1, B =* 2),
+        Set(2 /B)
+    ),
+    testProgram("if-then without else fails when the condition fails")(
+      happyProgram,
+      ifThen(man("jean"), true)
+    ),
+    testProgram("nested if-then-else")(
+      controlProgram,
+      sign(5, A) && sign(-1, B) && sign(0, C),
+        Set(atom("pos") /A, atom("neg") /B, atom("zero") /C)
+    ),
+    testProgram("a cut in a branch belongs to the clause")(
+      controlProgram,
+      chosen(A),
+        Set(jean /A)
+    ),
+    testProgram("a cut in the condition stays local")(
+      controlProgram,
+      localCut(A),
+        Set(jean /A),
+        Set(pat /A),
+        Set(atom("other") /A)
+    ),
+    testProgram("not does not bind variables")(
+      happyProgram,
+      not(man(A) && woman(A)) && man(A),
+        Set(fred /A)
+    ),
+    testProgram("catch a thrown term")(
+      Program.build,
+      catching(raise("oops"), X, Y =* 1),
+        Set(atom("oops") /X, 1 /Y)
+    ),
+    testProgram("catch a built-in error")(
+      Program.build,
+      catching(A is B + 1, error(C), true),
+        Set(atom("instantiation_error") /C)
+    ),
+    testProgram("bindings made before the error are undone")(
+      Program.build,
+      catching((A =* 1) && raise("e"), "e", true),
+        Set()
+    ),
+    testProgram("solutions before the error are kept")(
+      Program.build,
+      catching(member(A, list(1, 2)) && ifThenElse(A > 1, raise("big"), true), "big", A =* 0),
+        Set(1 /A),
+        Set(0 /A)
+    ),
+    testError("an uncaught throw")(
+      raise("oops"),
+      UncaughtThrow(atom("oops"))
+    ),
+    testError("a catcher that does not match rethrows")(
+      catching(raise("a"), "b", true),
+      UncaughtThrow(atom("a"))
+    ),
+    testError("errors in the continuation are not caught")(
+      catching(true, X, true) && raise("late"),
+      UncaughtThrow(atom("late"))
+    ),
+    testError("calling an unbound variable")(
+      call(A),
+      InstantiationError
     )
   )
 

@@ -28,6 +28,17 @@ def not(t: Term) = predicate("not", t)
 
 def call(t: Term) = predicate("call", t)
 
+def ifThen(condition: Term, onTrue: Term) = predicate("->", condition, onTrue)
+
+def ifThenElse(condition: Term, onTrue: Term, onFalse: Term) = predicate(";", ifThen(condition, onTrue), onFalse)
+
+// Prolog's throw/1 and catch/3
+def raise(ball: Term) = predicate("throw", ball)
+
+def catching(goal: Term, catcher: Term, recovery: Term) = predicate("catch", goal, catcher, recovery)
+
+def error(t: Term) = predicate("error", t)
+
 def eql(l: Term, r: Term) = predicate("=", l, r)
 
 def is(l: Term, r: Term) = predicate("is", l, r)

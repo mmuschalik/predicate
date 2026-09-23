@@ -147,8 +147,11 @@ case class Predicate(name: String, list: List[Term] = Nil) extends Term:
   def rename(newVersion: Int): This = 
     Predicate(name, list.map(m => m.rename(newVersion)))
 
-  def &&(right: Predicate) = 
-    Query(List(this,right))
+  def &&(right: Predicate): Predicate = 
+    Predicate(",", List(this, right))
+
+  def ||(right: Predicate): Predicate = 
+    Predicate(";", List(this, right))
 
   def :=(body: Predicate) = 
     Clause(this, body :: Nil)

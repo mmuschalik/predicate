@@ -50,10 +50,6 @@ object Program:
 
   def build: Program = 
     Program(Map())
-      .append(
-        not(A) := A && cut && false,
-        not(A)
-      )
       .append(Library.lists*)
 
 trait BuildPredicate[T]:
