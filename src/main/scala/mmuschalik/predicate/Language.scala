@@ -51,6 +51,7 @@ object Program:
   def build: Program = 
     Program(Map())
       .append(
+        predicate("true"),
         eql(A, A), 
         
         not(A) := A && cut && false,
