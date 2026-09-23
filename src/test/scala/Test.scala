@@ -65,6 +65,11 @@ object TestProlog extends ZIOSpecDefault {
       (A is 1) && (B is 1) && (Z is (A + B)), 
         Set(1 /A, 1 /B, 2 /Z)
     ),
+    testProgram("numeric literals of every Scala type convert")(
+      Program.build,
+      (A is 1 + 2L) && (B is A * 1.5) && (C is B - 0.5f) && (X is BigDecimal(1) + C) && (Y is 1 + X) && (Z is 2.5 * Y),
+        Set(3 /A, 4.5 /B, 4 /C, 5 /X, 6 /Y, 15 /Z)
+    ),
     testProgram("is with an already bound left side")(
       Program.build,
       (A is 1) && (A is 1),
