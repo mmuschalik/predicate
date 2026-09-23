@@ -24,6 +24,9 @@ def occurs(variable: Variable, term: Term, s: Subst): Boolean =
 def unify(x: Term, y: Term, s: Subst): Option[Subst] =
   (walk(x, s), walk(y, s)) match
     case (l, r) if l == r => Some(s)
+    // a zero-argument predicate and an atom of the same name are the same constant
+    case (Atom(n), Predicate(m, Nil)) if n == m => Some(s)
+    case (Predicate(m, Nil), Atom(n)) if n == m => Some(s)
     case (v: Variable, t) => if occurs(v, t, s) then None else Some(s + (v -> t))
     case (t, v: Variable) => if occurs(v, t, s) then None else Some(s + (v -> t))
     case (l: Predicate, r: Predicate) if l.name == r.name && l.list.size == r.list.size =>

@@ -4,22 +4,21 @@ import mmuschalik.predicate.*
 import zio.*
 import zio.stream.*
 
-sealed trait SolveError
-case class ExpectingNumber(t: Term) extends SolveError
-
 // a cut is tagged with the level (barrier) whose alternatives it prunes
 private val taggedCut = "$cut"
 
 private sealed trait Step
-private case class Solution(s: Subst) extends Step
+// depth is the next free variable version, so a continuation never reuses one
+private case class Solution(s: Subst, depth: Int) extends Step
 private case class CutTo(barrier: Int) extends Step
 
-private type Steps = ZStream[Any, SolveError, Step]
+private type Steps = ZStream[Any, Raised, Step]
 
 def solve(query: Query)(using Program): ZStream[Any, SolveError, Set[Binding]] =
   val queryVariables = query.goals.flatMap(variables).distinct
   solve(bindCuts(query.goals, 0), Map(), 1)
-    .collect { case Solution(s) =>
+    .mapError(raised => Errors.toSolveError(raised.ball))
+    .collect { case Solution(s, _) =>
       queryVariables
         .map(v => Binding(resolve(v, s), v))
         .filter(b => b.term != b.variable)
@@ -34,7 +33,7 @@ private def bindCuts(goals: List[Goal], barrier: Int): List[Goal] =
 
 private def solve(goals: List[Goal], s: Subst, depth: Int)(using program: Program): Steps =
   goals match
-    case Nil => ZStream.succeed(Solution(s))
+    case Nil => ZStream.succeed(Solution(s, depth))
     case goal :: rest =>
       goal match
         case Predicate(`taggedCut`, Num(barrier) :: Nil) =>
@@ -44,9 +43,9 @@ private def solve(goals: List[Goal], s: Subst, depth: Int)(using program: Progra
           walk(c, s) match
             case p: Predicate => alternatives(depth, List(() => solve(bindCuts(List(p), depth) ++ rest, s, depth + 1)))
             case _ => ZStream.empty
-        case Predicate("is", l :: r :: Nil) =>
-          ZStream.fromZIO(ZIO.fromEither(evalNumeric(resolve(r, s))))
-            .flatMap(n => unify(l, num(n), s).fold(ZStream.empty)(solve(rest, _, depth)))
+        case Predicate(name, args) if Builtins.all.contains((name, args.size)) =>
+          Builtins.all((name, args.size))(args, s, depth)
+            .flatMap(solve(rest, _, depth + 1))
         case _ =>
           alternatives(depth, program.get(goal).map { clause => () =>
             val renamed = clause.rename(depth)

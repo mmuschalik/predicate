@@ -26,6 +26,30 @@ sealed trait Term:
 
   def /(other: Term): Predicate = divide(this, other)
 
+  def %(other: Term): Predicate = mod(this, other)
+
+  def unary_- : Predicate = predicate("-", this)
+
+  // unification and structural identity
+  def !=*(other: Term): Predicate = predicate("\\=", this, other)
+
+  def ===(other: Term): Predicate = predicate("==", this, other)
+
+  def =!=(other: Term): Predicate = predicate("\\==", this, other)
+
+  // arithmetic comparison, both sides are evaluated
+  def <(other: Term): Predicate = predicate("<", this, other)
+
+  def >(other: Term): Predicate = predicate(">", this, other)
+
+  def <=(other: Term): Predicate = predicate("=<", this, other)
+
+  def >=(other: Term): Predicate = predicate(">=", this, other)
+
+  def =:=(other: Term): Predicate = predicate("=:=", this, other)
+
+  def =\=(other: Term): Predicate = predicate("=\\=", this, other)
+
 case class Atom(name: String) extends Term:
 
   type This = Atom

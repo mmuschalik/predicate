@@ -15,7 +15,8 @@ object TestProlog extends ZIOSpecDefault {
     algebraTests,
     solveTests,
     cutTests,
-    streamTests
+    streamTests,
+    builtinTests
   )
 
   val opTests = suite("Test Term Operations")(
@@ -238,14 +239,106 @@ object TestProlog extends ZIOSpecDefault {
       nat(peano(5000)),
         Set()
     ),
-    test("arithmetic on an unbound variable fails the stream") {
-      Program.build
-        .solve(A is (B + 1))
-        .runCollect
-        .either
-        .map(r => assert(r)(equalTo(Left(ExpectingNumber(B)))))
-    }
   )
+
+  val countdownProgram =
+    Program.build.append(
+      count(0),
+      count(X) := (X > 0) && (Y is X - 1) && count(Y)
+    )
+
+  val builtinTests = suite("Test built-ins")(
+    testProgram("arithmetic comparisons")(
+      Program.build,
+      (X is 3) && (X > 2) && (X < 4) && (X <= 3) && (X >= 3) && (X =:= 3.0) && (X =\= 4),
+        Set(3 /X)
+    ),
+    testProgram("a false comparison fails")(
+      Program.build,
+      num(3) > 4
+    ),
+    testProgram("comparisons evaluate both sides")(
+      Program.build,
+      (X is 2) && (X * 2 =:= X + 2),
+        Set(2 /X)
+    ),
+    testProgram("recursion guarded by a comparison instead of a cut")(
+      countdownProgram,
+      count(3),
+        Set()
+    ),
+    testProgram("integer arithmetic follows Prolog rounding")(
+      Program.build,
+      (A is num(-7) % 2) && (B is intDiv(-7, 2)) && (C is abs(-3)) && (X is min(2, 5)) && (Y is max(2, 5)) && (Z is -num(4)),
+        Set(1 /A, -3 /B, 3 /C, 2 /X, 5 /Y, -4 /Z)
+    ),
+    testProgram("between enumerates integers")(
+      Program.build,
+      between(1, 3, A),
+        Set(1 /A),
+        Set(2 /A),
+        Set(3 /A)
+    ),
+    testProgram("between checks a bound value")(
+      Program.build,
+      between(1, 3, 5)
+    ),
+    testProgram("not unifiable")(
+      Program.build,
+      (atom("a") !=* atom("b")) && (X !=* 1),
+    ),
+    testProgram("not unifiable succeeds for different terms")(
+      Program.build,
+      atom("a") !=* atom("b"),
+        Set()
+    ),
+    testProgram("identity does not bind variables")(
+      Program.build,
+      (X === X) && (X =!= Y) && (X =* 1) && (X === 1),
+        Set(1 /X)
+    ),
+    testProgram("identity fails for distinct unbound variables")(
+      Program.build,
+      X === Y
+    ),
+    testProgram("type checks")(
+      Program.build,
+      isVar(X) && isNumber(1) && isAtom("a") && isAtom(predicate("foo")) && isCompound(f(a)) && (X =* 1) && isNonVar(X),
+        Set(1 /X)
+    ),
+    testProgram("type checks fail on the wrong kind of term")(
+      Program.build,
+      isCompound("a")
+    ),
+    testError("arithmetic on an unbound variable")(
+      A is (B + 1),
+      InstantiationError
+    ),
+    testError("arithmetic on an atom")(
+      A is (atom("foo") + 1),
+      TypeError("evaluable", atom("foo"))
+    ),
+    testError("division by zero")(
+      A is (1 / num(0)),
+      EvaluationError("zero_divisor")
+    ),
+    testError("mod needs integers")(
+      A is (num(1.5) % 1),
+      TypeError("integer", 1.5)
+    ),
+    testError("between needs bound limits")(
+      between(1, A, 2),
+      InstantiationError
+    )
+  )
+
+  def testError(msg: String)(query: Goal, error: SolveError): Spec[Any, Nothing] = test(msg) {
+    Program.build
+      .solve(query)
+      .runCollect
+      .either
+      .map(r => assert(r)(equalTo(Left(error))))
+  }
 
   def testProgram(msg: String)(program: Program, query: Goal, set: Set[Binding]*): Spec[Any, SolveError] =
     testProgram(msg)(program, Query(List(query)), set*)
