@@ -41,6 +41,20 @@ object TestProlog extends ZIOSpecDefault {
       val t = f(g(X, h(X, b)), Z)
       val sub = Set(a /X, h(a, b) /Z)
       assert(t.substitute(sub))(equalTo(f(g(a, h(a, b)), h(a, b))))
+    },
+    test("merge substitutes into nested terms") {
+      assert(merge(Set(f(Y) /X), Set("b" /Y)))(equalTo(Set(f("b") /X, "b" /Y)))
+    },
+    test("unification resolves bindings inside nested terms") {
+      assert(unify(f(X, Y), f(g(Y), a)))(equalTo(Some(Set(g(a) /X, a /Y))))
+    },
+    test("occurs check distinguishes renamed variables") {
+      val x1 = Variable("_X", 1)
+      val x2 = Variable("_X", 2)
+      assert(unify(x1, f(x2)))(equalTo(Some(Set(f(x2) /x1))))
+    },
+    test("occurs check rejects cyclic terms") {
+      assert(unify(X, f(X)))(equalTo(None))
     }
   )
 
@@ -49,6 +63,25 @@ object TestProlog extends ZIOSpecDefault {
       Program.build,
       (A is 1) && (B is 1) && (Z is (A + B)), 
         Set(1 /A, 1 /B, 2 /Z)
+    ),
+    testProgram("is with an already bound left side")(
+      Program.build,
+      (A is 1) && (A is 1),
+        Set(1 /A)
+    ),
+    testProgram("is fails when a bound left side differs")(
+      Program.build,
+      (A is 1) && (A is 2)
+    ),
+    testProgram("is with a number on the left side")(
+      Program.build,
+      is(3, plus(1, 2)),
+        Set()
+    ),
+    testProgram("is updates bindings that point at its variable")(
+      Program.build,
+      (A =* B) && (B is 1),
+        Set(1 /A, 1 /B)
     )
   )
 
@@ -96,6 +129,26 @@ object TestProlog extends ZIOSpecDefault {
     testProgram("test false")(
       happyProgram,
       wealthy(A) && false
+    ),
+    testProgram("true succeeds")(
+      Program.build,
+      (A =* 1) && true,
+        Set(1 /A)
+    ),
+    testProgram("bindings stay consistent through nested terms")(
+      Program.build,
+      (f(X, Y) =* f(g(Y), a)) && (X =* g(Z)),
+        Set(g(a) /X, a /Y, a /Z)
+    ),
+    testProgram("appending a list of facts keeps existing clauses")(
+      {
+        given BuildPredicate[String] with
+          def build(name: String) = woman(name)
+        Program.build.append(woman(jean)).append(List(pat))
+      },
+      woman(A),
+        Set(jean /A),
+        Set(pat /A)
     ),
     testProgram("basic not")(
       happyProgram,
