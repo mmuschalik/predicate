@@ -15,7 +15,7 @@ def solve(query: Query)(using Program): UIO[ZStream[Any, SolveError, Set[Binding
     stream      = ZStream.fromQueue(queue)
     remainder  <- {
                     for 
-                      _   <- solve(query, Set(), 1, queue)
+                      _   <- solveQuery(query, Set(), 1, queue)
                                 .onError(_ => queue.shutdown)
                       rem <- queue.takeAll
                       _   <- queue.shutdown
@@ -24,6 +24,14 @@ def solve(query: Query)(using Program): UIO[ZStream[Any, SolveError, Set[Binding
   yield stream ++ 
     ZStream.fromZIO(remainder.join)
       .flatMap(ZStream.fromChunk(_))
+
+// a cut that reaches the top level belongs to the query itself: commit and continue with the rest of the query
+def solveQuery(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Binding]])(using Program): ZIO[Any, SolveError, Unit] =
+  solve(query, bindings, depth, queue)
+    .flatMap {
+      case c: Cut => solveQuery(c.query, c.bindings, c.depth, queue)
+      case _ => ZIO.unit
+    }
 
 def evalWithBreak[A, E](list: LazyList[ZIO[Any, E, A]], condition: A => Boolean): ZIO[Any, E, Option[A]] =
   list
