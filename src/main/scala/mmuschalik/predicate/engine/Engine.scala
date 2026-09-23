@@ -69,14 +69,16 @@ def solve(query: Query, bindings: Set[Binding], depth: Int, queue: Queue[Set[Bin
           c match
             case p: Predicate => solve(Query(p :: query.goals.tail), bindings, depth, queue)
             case _ => ZIO.succeed(Done)
-        case Predicate("is", (v: Variable) :: (t: Term) :: Nil) =>
-          ZIO.fromEither(evalNumeric(t))
+        case Predicate("is", l :: r :: Nil) =>
+          ZIO.fromEither(evalNumeric(r))
             .flatMap(m => 
-              solve(
-                Query(substitutePredicate(query.goals.tail, Set(Binding(atom(m), v)))), 
-                bindings + Binding(atom(m), v), 
-                depth + 1, 
-                queue))
+              unify(l, atom(m))
+                .fold(ZIO.succeed(Done))(unified =>
+                  solve(
+                    Query(substitutePredicate(query.goals.tail, unified)), 
+                    merge(bindings, unified), 
+                    depth + 1, 
+                    queue)))
         case _ => 
           evalWithBreak(
             LazyList.from(summon[Program].get(goal))
